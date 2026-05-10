@@ -100,7 +100,7 @@ createCommand({
           thumbnail: emojis.static.action_add as any,
           button: new ButtonBuilder({
             customId: "ticket/form/open",
-        ...
+            label: "Abrir Ticket",
             style: ButtonStyle.Primary,
             emoji: "1502789959378145300",
           }),
