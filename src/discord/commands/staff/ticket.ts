@@ -1,5 +1,5 @@
 import { createCommand } from "#base";
-import { createContainer, createSection } from "@magicyan/discord";
+import { createContainer, createSection, Separator } from "@magicyan/discord";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -92,13 +92,15 @@ createCommand({
             `<:apps_discord:1502789832106311811> Não chame membros da equipe no privado.`,
             `<:apps_discord:1502789832106311811> Iniciar um atendimento sem um motivo coerente poderá resultar em punições.`,
           ].join("\n"),
+          thumbnail: emojis.static.shield_check as any,
         }),
         Separator.Default,
         createSection({
           content: "Clique no botão abaixo para iniciar o seu atendimento.",
+          thumbnail: emojis.static.action_add as any,
           button: new ButtonBuilder({
             customId: "ticket/form/open",
-            label: "Abrir Ticket",
+        ...
             style: ButtonStyle.Primary,
             emoji: "1502789959378145300",
           }),
