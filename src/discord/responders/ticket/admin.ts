@@ -66,37 +66,36 @@ createResponder({
   },
 });
 
-// Responder que recebe as considerações finais e finaliza TUDO (fecha, gera log e deleta)
-createResponder({
-  customId: "ticket/manage/close_submit/:transcript", // Recebe sim ou não
-  types: [ResponderType.Modal, ResponderType.ModalComponent],
-  cache: "cached",
-  async run(interaction: any, { transcript }) {
-    const { channel, user, fields, guild } = interaction;
-    if (!channel?.isTextBased()) return;
+// Função compartilhada para finalização
+async function processCloseSubmission(
+  interaction: any,
+  transcriptChoice: string,
+) {
+  const { channel, user, fields, guild } = interaction;
+  if (!channel?.isTextBased()) return;
 
-    const ticket = await db.tickets.getByChannel(channel.id);
-    if (!ticket) {
-      await interaction.reply({
-        content: "Erro: Ticket não encontrado no banco.",
-        flags: ["Ephemeral"],
-      });
-      return;
-    }
+  console.log(">>> [Ticket] FINALIZANDO TUDO...");
 
-    // 1. Notificação de processamento
-    if (typeof interaction.update === "function") {
-      await interaction
-        .update({ content: "Finalizando ticket...", components: [] })
-        .catch(() => {});
+  // 1. Acknowledge imediato (O MAIS IMPORTANTE PARA NÃO DAR ERRO NO DISCORD)
+  if (interaction.isModalSubmit()) {
+    if (interaction.isFromMessage()) {
+      await interaction.deferUpdate().catch(() => {});
     } else {
       await interaction.deferReply({ flags: ["Ephemeral"] }).catch(() => {});
+    }
+  }
+
+  try {
+    const ticket = await db.tickets.getByChannel(channel.id);
+    if (!ticket) {
+      console.error("[Ticket] Erro: Ticket não encontrado no banco.");
+      return;
     }
 
     const data = modalFieldsToRecord(fields);
     const considerations =
       (data.considerations as string) || "Atendimento concluído.";
-    const wantTranscript = transcript === "yes";
+    const wantTranscript = transcriptChoice === "yes";
 
     // 2. Lógica de Fechamento no Banco
     ticket.closed = true;
@@ -109,7 +108,7 @@ createResponder({
       transcriptUrl = await generateTranscript(channel as any, ticket, user);
     }
 
-    // 3. Enviar Log para o Canal de Staff (apenas se quis transcript)
+    // 3. Enviar Log para o Canal de Staff
     if (wantTranscript) {
       const guildData = await db.guilds.get(guild.id);
       const logChannelId = guildData.channels?.tickets;
@@ -148,7 +147,9 @@ createResponder({
             }),
           );
 
-          await logChannel.send({ embeds: [embed], components: [row] });
+          await logChannel
+            .send({ embeds: [embed], components: [row] })
+            .catch(() => {});
         }
       }
     }
@@ -192,6 +193,30 @@ createResponder({
     }
 
     // 5. Deletar o canal
-    setTimeout(() => channel.delete().catch(() => {}), 3000);
+    setTimeout(() => channel.delete().catch(() => {}), 2000);
+  } catch (err) {
+    console.error("[Ticket] Erro crítico no fechamento:", err);
+  }
+}
+
+// Responder que recebe as considerações finais
+createResponder({
+  customId: "ticket/manage/close_submit/:transcript",
+  types: [ResponderType.Modal, ResponderType.ModalComponent],
+  cache: "cached",
+  async run(interaction, { transcript }) {
+    await processCloseSubmission(interaction, transcript);
+  },
+});
+
+// Backup para o ID de título do modal
+createResponder({
+  customId: "Finalizar Atendimento",
+  types: [ResponderType.Modal, ResponderType.ModalComponent],
+  cache: "cached",
+  async run(interaction) {
+    console.log(">>> [Ticket] Finalização capturada pelo backup de título!");
+    // Como o título não carrega o parâmetro :transcript, assumimos "yes" como padrão no backup
+    await processCloseSubmission(interaction, "yes");
   },
 });
