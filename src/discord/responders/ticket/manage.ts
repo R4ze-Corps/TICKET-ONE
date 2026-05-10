@@ -83,10 +83,10 @@ function createMainPanel(ticket: any, owner: any) {
 }
 
 createResponder({
-  customId: "ticket/manage/:action",
+  customId: "ticket/manage/:action/:choice?",
   types: [ResponderType.Button],
   cache: "cached",
-  async run(interaction, { action }) {
+  async run(interaction, { action, choice }) {
     const { channel, user, guild } = interaction;
 
     if (!channel?.isTextBased()) return;
@@ -283,14 +283,19 @@ createResponder({
         const container = createContainer(
           constants.colors.danger,
           createSection({
-            content: `### Finalizar atendimento\nVocê está prestes a encerrar este atendimento, deseja continuar?`,
+            content: `### Finalizar atendimento\nDeseja gerar o transcript deste atendimento?`,
             thumbnail: emojis.static.action_question as any,
           }),
           createRow(
             new ButtonBuilder({
-              customId: "ticket/manage/close_modal", // Mudado: Agora abre modal
-              label: "Confirmar",
-              style: ButtonStyle.Secondary,
+              customId: "ticket/manage/close_modal/yes",
+              label: "Sim",
+              style: ButtonStyle.Success,
+            }),
+            new ButtonBuilder({
+              customId: "ticket/manage/close_modal/no",
+              label: "Não",
+              style: ButtonStyle.Danger,
             }),
             new ButtonBuilder({
               customId: "ticket/manage/cancel_close",
@@ -309,7 +314,7 @@ createResponder({
 
       case "close_modal": {
         const modal = new ModalBuilder()
-          .setCustomId("ticket/manage/close_submit")
+          .setCustomId(`ticket/manage/close_submit/${choice}`) // Passa sim ou não para o submit
           .setTitle("Finalizar Atendimento");
 
         const label = new LabelBuilder()
@@ -377,6 +382,84 @@ createResponder({
 
         modal.addComponents(label);
         await interaction.showModal(modal).catch((e) => console.error(e));
+        break;
+      }
+
+      case "close": {
+        if (ticket.closed) {
+          await interaction.reply({
+            content: "Este ticket já está fechado!",
+            flags: ["Ephemeral"],
+          });
+          return;
+        }
+
+        // Se veio do painel de confirmação (que é efêmero), precisamos avisar que estamos processando
+        if (
+          interaction.isButton() &&
+          interaction.message.flags.has("Ephemeral")
+        ) {
+          await interaction
+            .update({ content: "Encerrando ticket...", components: [] })
+            .catch(() => {});
+        } else {
+          await interaction.deferReply();
+        }
+
+        const owner = await guild.members
+          .fetch(ticket.ownerId)
+          .catch(() => null);
+        if (owner) {
+          await (channel as any).permissionOverwrites.edit(owner.id, {
+            SendMessages: false,
+            ViewChannel: true,
+          });
+        }
+
+        ticket.closed = true;
+        ticket.closedBy = user.id;
+        ticket.closedAt = new Date();
+        await (ticket as any).save();
+
+        const container = createContainer(
+          constants.colors.danger,
+          createSection({
+            content: `### Ticket Encerrado\nEste atendimento foi finalizado por ${user}. O histórico de mensagens foi preservado para auditoria.`,
+            thumbnail: user.displayAvatarURL() as any,
+          }),
+          Separator.Default,
+          `**Resumo do Encerramento**\n> **Fechado em:** <t:${Math.floor(Date.now() / 1000)}:F>\n> **Status:** \`FECHADO / ARQUIVADO\``,
+          Separator.Default,
+          createRow(
+            new ButtonBuilder({
+              customId: "ticket/manage/delete",
+              label: "Excluir Canal",
+              style: ButtonStyle.Secondary,
+              emoji: "1502789802918150206",
+            }),
+            new ButtonBuilder({
+              customId: "ticket/manage/reopen",
+              label: "Reabrir Ticket",
+              style: ButtonStyle.Secondary,
+              emoji: "1502789944408674304",
+            }),
+          ),
+        );
+
+        if (
+          interaction.isButton() &&
+          interaction.message.flags.has("Ephemeral")
+        ) {
+          await channel.send({
+            components: [container],
+            flags: ["IsComponentsV2"],
+          });
+        } else {
+          await interaction.editReply({
+            components: [container],
+            flags: ["IsComponentsV2"],
+          });
+        }
         break;
       }
 

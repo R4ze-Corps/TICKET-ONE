@@ -68,10 +68,10 @@ createResponder({
 
 // Responder que recebe as considerações finais e finaliza TUDO (fecha, gera log e deleta)
 createResponder({
-  customId: "ticket/manage/close_submit",
+  customId: "ticket/manage/close_submit/:transcript", // Recebe sim ou não
   types: [ResponderType.Modal, ResponderType.ModalComponent],
   cache: "cached",
-  async run(interaction: any) {
+  async run(interaction: any, { transcript }) {
     const { channel, user, fields, guild } = interaction;
     if (!channel?.isTextBased()) return;
 
@@ -87,10 +87,7 @@ createResponder({
     // 1. Notificação de processamento
     if (typeof interaction.update === "function") {
       await interaction
-        .update({
-          content: "Finalizando ticket e gerando registros...",
-          components: [],
-        })
+        .update({ content: "Finalizando ticket...", components: [] })
         .catch(() => {});
     } else {
       await interaction.deferReply({ flags: ["Ephemeral"] }).catch(() => {});
@@ -99,6 +96,7 @@ createResponder({
     const data = modalFieldsToRecord(fields);
     const considerations =
       (data.considerations as string) || "Atendimento concluído.";
+    const wantTranscript = transcript === "yes";
 
     // 2. Lógica de Fechamento no Banco
     ticket.closed = true;
@@ -106,51 +104,52 @@ createResponder({
     ticket.closedAt = new Date();
     await (ticket as any).save();
 
-    const transcriptUrl = await generateTranscript(
-      channel as any,
-      ticket,
-      user,
-    );
+    let transcriptUrl = "";
+    if (wantTranscript) {
+      transcriptUrl = await generateTranscript(channel as any, ticket, user);
+    }
 
-    // 3. Enviar Log para o Canal de Staff
-    const guildData = await db.guilds.get(guild.id);
-    const logChannelId = guildData.channels?.tickets;
-    if (logChannelId) {
-      const logChannel = guild.channels.cache.get(logChannelId);
-      if (logChannel?.isTextBased()) {
-        const owner = await guild.members
-          .fetch(ticket.ownerId)
-          .catch(() => null);
-        const embed = createEmbed({
-          title: "Log de Ticket Finalizado",
-          color: constants.colors.danger,
-          thumbnail: owner?.displayAvatarURL(),
-          fields: [
-            {
-              name: "Dono",
-              value: `${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
-              inline: true,
-            },
-            {
-              name: "Finalizado por",
-              value: `${user} (\`${user.id}\`)`,
-              inline: true,
-            },
-            { name: "Categoria", value: ticket.category, inline: true },
-          ],
-          footer: { text: `ID: ${ticket.ticketId}` },
-          timestamp: new Date(),
-        });
+    // 3. Enviar Log para o Canal de Staff (apenas se quis transcript)
+    if (wantTranscript) {
+      const guildData = await db.guilds.get(guild.id);
+      const logChannelId = guildData.channels?.tickets;
+      if (logChannelId) {
+        const logChannel = guild.channels.cache.get(logChannelId);
+        if (logChannel?.isTextBased()) {
+          const owner = await guild.members
+            .fetch(ticket.ownerId)
+            .catch(() => null);
+          const embed = createEmbed({
+            title: "Log de Ticket Finalizado",
+            color: constants.colors.danger,
+            thumbnail: owner?.displayAvatarURL(),
+            fields: [
+              {
+                name: "Dono",
+                value: `${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
+                inline: true,
+              },
+              {
+                name: "Finalizado por",
+                value: `${user} (\`${user.id}\`)`,
+                inline: true,
+              },
+              { name: "Categoria", value: ticket.category, inline: true },
+            ],
+            footer: { text: `ID: ${ticket.ticketId}` },
+            timestamp: new Date(),
+          });
 
-        const row = createRow(
-          new ButtonBuilder({
-            label: "Ver Transcript Online",
-            style: ButtonStyle.Link,
-            url: transcriptUrl,
-          }),
-        );
+          const row = createRow(
+            new ButtonBuilder({
+              label: "Ver Transcript Online",
+              style: ButtonStyle.Link,
+              url: transcriptUrl,
+            }),
+          );
 
-        await logChannel.send({ embeds: [embed], components: [row] });
+          await logChannel.send({ embeds: [embed], components: [row] });
+        }
       }
     }
 
@@ -173,13 +172,15 @@ createResponder({
         `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
         Separator.Default,
         `**Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
-        createRow(
-          new ButtonBuilder({
-            label: "Acessar Transcript",
-            style: ButtonStyle.Link,
-            url: transcriptUrl,
-          }),
-        ),
+        wantTranscript
+          ? createRow(
+              new ButtonBuilder({
+                label: "Acessar Transcript",
+                style: ButtonStyle.Link,
+                url: transcriptUrl,
+              }),
+            )
+          : [],
       );
 
       await ownerMember
@@ -190,7 +191,7 @@ createResponder({
         .catch(() => {});
     }
 
-    // 5. Deletar o canal após 3 segundos
+    // 5. Deletar o canal
     setTimeout(() => channel.delete().catch(() => {}), 3000);
   },
 });
