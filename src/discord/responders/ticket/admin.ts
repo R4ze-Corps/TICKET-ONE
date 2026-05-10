@@ -18,18 +18,22 @@ async function processRename(interaction: any) {
   if (!channel?.isTextBased()) return;
 
   try {
+    // Acknowledge rápido
+    await (
+      interaction.isFromMessage()
+        ? interaction.deferUpdate()
+        : interaction.deferReply({ ephemeral: true })
+    ).catch(() => {});
+
     const data = modalFieldsToRecord(fields);
     const newName = data.new_name as string;
 
     if (!newName) {
-      await interaction.reply({
-        content: "Nome inválido.",
-        flags: ["Ephemeral"],
-      });
+      await interaction
+        .editReply({ content: "Nome inválido." })
+        .catch(() => {});
       return;
     }
-
-    await interaction.deferReply({ flags: ["Ephemeral"] });
 
     const toolEmoji = "🔨";
     const formattedName = `${toolEmoji}・${newName.replace(/\s+/g, "-").toLowerCase()}`;
@@ -38,9 +42,11 @@ async function processRename(interaction: any) {
       console.error("Erro ao renomear canal:", err);
     });
 
-    await interaction.editReply({
-      content: `<:action_check:1502789797821939752> Canal renomeado para: \`${formattedName}\``,
-    });
+    await interaction
+      .editReply({
+        content: `<:action_check:1502789797821939752> Canal renomeado para: \`${formattedName}\``,
+      })
+      .catch(() => {});
   } catch (error) {
     console.error("[Renomear] Erro ao processar:", error);
   }
@@ -56,7 +62,7 @@ createResponder({
   },
 });
 
-// Responder de Backup
+// Backup para Renomear
 createResponder({
   customId: "Renomear Ticket",
   types: [ResponderType.Modal, ResponderType.ModalComponent],
@@ -66,20 +72,21 @@ createResponder({
   },
 });
 
-// Função compartilhada para finalização (V4 - ULTRA RESILIENTE)
+// Função compartilhada para finalização (V5 - LOGS OBRIGATÓRIOS + FIX MODAL)
 async function processCloseSubmission(interaction: any) {
   const { channel, user, fields, guild } = interaction;
   if (!channel?.isTextBased()) return;
 
   console.log(`[Ticket] >>> FINALIZANDO CANAL: ${channel.name}`);
 
-  // 1. RESPOSTA IMEDIATA (Essencial para o modal fechar sem erro)
+  // 1. Resposta Imediata e Robusta
   try {
     if (interaction.isFromMessage()) {
+      // Se veio de um botão (ModalComponent), damos update para "limpar" o painel e fechar o modal
       await interaction
         .update({
           content:
-            "<:action_check:1502789797821939752> Finalizando atendimento...",
+            "<:action_check:1502789797821939752> Atendimento finalizado com sucesso. O canal será deletado em instantes.",
           components: [],
         })
         .catch(() => {});
@@ -87,13 +94,14 @@ async function processCloseSubmission(interaction: any) {
       await interaction
         .reply({
           content:
-            "<:action_check:1502789797821939752> Finalizando atendimento...",
+            "<:action_check:1502789797821939752> Atendimento finalizado.",
           flags: ["Ephemeral"],
         })
         .catch(() => {});
     }
+    console.log("[Ticket] 1. Discord Respondido");
   } catch (e) {
-    console.error("[Ticket] Erro ao responder interação inicial:", e);
+    console.error("[Ticket] Erro na resposta inicial:", e);
   }
 
   try {
@@ -102,7 +110,7 @@ async function processCloseSubmission(interaction: any) {
 
     const data = modalFieldsToRecord(fields);
     const transcriptChoiceRaw = data.transcript_choice;
-    const wantTranscript =
+    const wantTranscriptUser =
       (Array.isArray(transcriptChoiceRaw)
         ? transcriptChoiceRaw[0]
         : transcriptChoiceRaw) === "yes";
@@ -114,18 +122,20 @@ async function processCloseSubmission(interaction: any) {
     ticket.closedBy = user.id;
     ticket.closedAt = new Date();
     await (ticket as any).save();
+    console.log("[Ticket] 2. Banco Atualizado");
 
-    // 3. Transcript (Opcional)
-    let transcriptUrl = "";
-    if (wantTranscript) {
-      transcriptUrl = await generateTranscript(
-        channel as any,
-        ticket,
-        user,
-      ).catch(() => "");
-    }
+    // 3. Transcript OBRIGATÓRIO (Independente da escolha do Staff)
+    console.log("[Ticket] 3. Gerando Transcript (Obrigatório para Staff)...");
+    const transcriptUrl = await generateTranscript(
+      channel as any,
+      ticket,
+      user,
+    ).catch((err) => {
+      console.error("[Ticket] Erro ao gerar transcript:", err);
+      return "";
+    });
 
-    // 4. LOG PARA STAFF (Sempre envia, mas muda o conteúdo se tiver transcript)
+    // 4. LOG PARA STAFF (Sempre envia com o link se gerado)
     const guildData = await db.guilds.get(guild.id);
     const logChannelId = guildData.channels?.tickets;
 
@@ -137,7 +147,7 @@ async function processCloseSubmission(interaction: any) {
           .catch(() => null);
         const embed = createEmbed({
           title: "📄 Log de Encerramento",
-          description: `O ticket \`${ticket.ticketId}\` foi finalizado.`,
+          description: `O ticket \`${ticket.ticketId}\` foi finalizado por ${user}.`,
           color: constants.colors.danger,
           thumbnail: owner?.displayAvatarURL() || undefined,
           fields: [
@@ -153,8 +163,8 @@ async function processCloseSubmission(interaction: any) {
             },
             { name: "Categoria", value: ticket.category, inline: true },
             {
-              name: "Transcript",
-              value: wantTranscript ? "✅ Gerado" : "❌ Não solicitado",
+              name: "Escolha do Staff",
+              value: wantTranscriptUser ? "✅ Salvar" : "❌ Não Salvar",
               inline: true,
             },
             { name: "Considerações", value: considerations },
@@ -163,7 +173,7 @@ async function processCloseSubmission(interaction: any) {
         });
 
         const components = [];
-        if (wantTranscript && transcriptUrl) {
+        if (transcriptUrl) {
           components.push(
             createRow(
               new ButtonBuilder({
@@ -177,13 +187,12 @@ async function processCloseSubmission(interaction: any) {
 
         await (logChannel as any)
           .send({ embeds: [embed], components })
-          .catch((err: any) =>
-            console.error("[Ticket] Falha ao enviar log staff:", err),
-          );
+          .catch(() => {});
+        console.log("[Ticket] 4. Log enviado para Staff");
       }
     }
 
-    // 5. ENVIAR DM PARA O USUÁRIO
+    // 5. ENVIAR DM PARA O USUÁRIO (Apenas se ele quiser o link)
     const ownerMember = await guild.members
       .fetch(ticket.ownerId)
       .catch(() => null);
@@ -202,7 +211,7 @@ async function processCloseSubmission(interaction: any) {
         `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
         Separator.Default,
         `**Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
-        wantTranscript && transcriptUrl
+        wantTranscriptUser && transcriptUrl
           ? createRow(
               new ButtonBuilder({
                 label: "Acessar Transcript",
@@ -219,18 +228,20 @@ async function processCloseSubmission(interaction: any) {
           flags: ["IsComponentsV2"],
         })
         .catch(() => {});
+      console.log("[Ticket] 5. DM de encerramento enviada");
     }
 
-    // 6. Deletar canal após tempo de segurança
+    // 6. Deletar canal
+    console.log("[Ticket] 6. Deletando canal em 3 segundos...");
     setTimeout(() => {
       channel.delete().catch(() => {});
     }, 3000);
   } catch (err) {
-    console.error("[Ticket] Erro no processo final:", err);
+    console.error("[Ticket] Erro no encerramento:", err);
   }
 }
 
-// Responder que recebe as considerações finais
+// Responder Principal do Submit
 createResponder({
   customId: "ticket/manage/close_submit",
   types: [ResponderType.Modal, ResponderType.ModalComponent],
@@ -240,12 +251,13 @@ createResponder({
   },
 });
 
-// Backup para o ID de título do modal
+// Backup para o ID de título
 createResponder({
   customId: "Finalizar Atendimento",
   types: [ResponderType.Modal, ResponderType.ModalComponent],
   cache: "cached",
   async run(interaction) {
+    console.log(">>> [Ticket] Finalização capturada pelo backup!");
     await processCloseSubmission(interaction);
   },
 });
