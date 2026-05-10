@@ -280,6 +280,7 @@ createResponder({
         break;
       }
 
+      case "close_confirm":
       case "close_modal": {
         const modal = new ModalBuilder()
           .setCustomId("ticket/manage/close_submit")
