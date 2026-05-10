@@ -86,25 +86,21 @@ createCommand({
           thumbnail: emojis.static.other_ticket,
         }),
         Separator.Default,
-        createSection({
-          content: [
-            `<:apps_discord:1502789832106311811> Forneça o motivo e o máximo de informações possível para agilizar seu atendimento.`,
-            `<:apps_discord:1502789832106311811> Não chame membros da equipe no privado.`,
-            `<:apps_discord:1502789832106311811> Iniciar um atendimento sem um motivo coerente poderá resultar em punições.`,
-          ].join("\n"),
-          thumbnail: emojis.static.shield_check as any,
-        }),
+        [
+          `<:apps_discord:1502789832106311811> Forneça o motivo e o máximo de informações possível para agilizar seu atendimento.`,
+          `<:apps_discord:1502789832106311811> Não chame membros da equipe no privado.`,
+          `<:apps_discord:1502789832106311811> Iniciar um atendimento sem um motivo coerente poderá resultar em punições.`,
+        ].join("\n"),
         Separator.Default,
-        createSection({
-          content: "Clique no botão abaixo para iniciar o seu atendimento.",
-          thumbnail: emojis.static.action_add as any,
-          button: new ButtonBuilder({
+        "Clique no botão abaixo para iniciar o seu atendimento.",
+        createRow(
+          new ButtonBuilder({
             customId: "ticket/form/open",
             label: "Abrir Ticket",
             style: ButtonStyle.Primary,
             emoji: "1502789959378145300",
           }),
-        }),
+        ),
       );
 
       await (channel as any).send({
