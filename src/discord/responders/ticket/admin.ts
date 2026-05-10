@@ -79,31 +79,17 @@ async function processCloseSubmission(interaction: any) {
 
   console.log(`[Ticket] >>> FINALIZANDO CANAL: ${channel.name}`);
 
-  // 1. Resposta Imediata e Robusta
+  // 1. Acknowledge IMEDIATO (Fecha o modal instantaneamente)
   try {
     if (interaction.isFromMessage()) {
-      // Se veio de um botão (ModalComponent), damos update para "limpar" o painel e fechar o modal
-      await interaction
-        .update({
-          content:
-            "<:action_check:1502789797821939752> Atendimento finalizado com sucesso. O canal será deletado em instantes.",
-          components: [],
-        })
-        .catch(() => {});
+      await interaction.deferUpdate().catch(() => {});
     } else {
-      await interaction
-        .reply({
-          content:
-            "<:action_check:1502789797821939752> Atendimento finalizado.",
-          flags: ["Ephemeral"],
-        })
-        .catch(() => {});
+      await interaction.deferReply({ ephemeral: true }).catch(() => {});
     }
-    console.log("[Ticket] 1. Discord Respondido");
+    console.log("[Ticket] 1. Discord Acknowledged (Modal Closed)");
   } catch (e) {
-    console.error("[Ticket] Erro na resposta inicial:", e);
+    console.error("[Ticket] Erro no Acknowledge:", e);
   }
-
   try {
     const ticket = await db.tickets.getByChannel(channel.id);
     if (!ticket) return;
