@@ -376,6 +376,53 @@ createResponder({
           components: [container],
           flags: ["IsComponentsV2"],
         });
+
+        // Notificação Automática por DM ao fechar
+        if (owner) {
+          const transcriptUrl = await generateTranscript(
+            channel as any,
+            ticket,
+            user,
+          );
+          const closeTime = Math.floor(Date.now() / 1000);
+          const openTime = Math.floor(
+            new Date(ticket.openedAt).getTime() / 1000,
+          );
+
+          const dmContainer = createContainer(
+            constants.colors.danger,
+            createSection({
+              content: `### Atendimento Encerrado\nOlá ${owner}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
+              thumbnail: user.displayAvatarURL() as any,
+            }),
+            Separator.Default,
+            `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`,
+            `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
+            Separator.Default,
+            createSection({
+              content: `**Considerações Finais:**\n\`\`\`\nAtendimento concluído! Agradecemos o seu contato e ficamos à disposição para qualquer outra necessidade. Equipe de Suporte.\n\`\`\``,
+              thumbnail: emojis.static.action_info as any,
+            }),
+            createRow(
+              new ButtonBuilder({
+                label: "Acessar Transcript",
+                style: ButtonStyle.Link,
+                url: transcriptUrl,
+              }),
+            ),
+          );
+
+          await owner
+            .send({
+              components: [dmContainer],
+              flags: ["IsComponentsV2"],
+            })
+            .catch(() => {
+              console.log(
+                `[Ticket] Não foi possível enviar DM de fechamento para ${owner.user.tag}`,
+              );
+            });
+        }
         break;
       }
 
@@ -385,7 +432,6 @@ createResponder({
           flags: ["Ephemeral"],
         });
 
-        // Garantir que o ticket seja marcado como fechado para o transcript mostrar a data
         ticket.closed = true;
         await (ticket as any).save();
 
@@ -533,7 +579,7 @@ async function generateTranscript(
     createdAt: ticket.openedAt
       ? new Date(ticket.openedAt).toISOString()
       : new Date().toISOString(),
-    closedAt: ticket.closed ? new Date().toISOString() : undefined,
+    closedAt: new Date().toISOString(),
     openedBy: {
       id: ticket.ownerId,
       username: ownerMember?.user.username || "Desconhecido",
