@@ -526,7 +526,9 @@ async function generateTranscript(
     channelId: channel.id,
     channelName: channel.name,
     category: ticket.category || "Suporte",
-    createdAt: ticket.openedAt?.toISOString() || new Date().toISOString(),
+    createdAt: ticket.openedAt
+      ? new Date(ticket.openedAt).toISOString()
+      : new Date().toISOString(),
     closedAt: new Date().toISOString(),
     openedBy: {
       id: ticket.ownerId,
@@ -554,7 +556,7 @@ async function generateTranscript(
       content: msg.content,
       timestamp: msg.createdAt.toISOString(),
       attachments: msg.attachments.map((att) => ({
-        url: msg.url,
+        url: att.url,
         filename: att.name,
         contentType: att.contentType,
       })),
