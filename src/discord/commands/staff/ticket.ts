@@ -1,5 +1,10 @@
 import { createCommand } from "#base";
-import { createContainer, createSection, Separator } from "@magicyan/discord";
+import {
+  createContainer,
+  createSection,
+  Separator,
+  createRow,
+} from "@magicyan/discord";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
