@@ -673,6 +673,7 @@ export async function generateTranscript(
     channelId: channel.id,
     channelName: channel.name,
     category: ticket.category || "Suporte",
+    description: ticket.description || "Não informado.",
     createdAt: ticket.openedAt
       ? new Date(ticket.openedAt).toISOString()
       : new Date().toISOString(),

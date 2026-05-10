@@ -3,7 +3,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, MessageSquare, User, Tag, Clock, Hash } from "lucide-react";
+import {
+  Calendar,
+  MessageSquare,
+  User,
+  Tag,
+  Clock,
+  Hash,
+  HelpCircle,
+} from "lucide-react";
 import type { Transcript } from "@/lib/types";
 
 interface SummaryCardProps {
@@ -169,6 +177,24 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
           )}
         </div>
       </CardContent>
+
+      {transcript.description && (
+        <div className="px-6 pb-6 pt-2">
+          <div className="border-t border-border/50 pt-4">
+            <h3 className="text-sm font-semibold text-foreground mb-3">
+              Detalhes do Contato
+            </h3>
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/40">
+              <div className="mt-0.5">
+                <HelpCircle className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {transcript.description}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
