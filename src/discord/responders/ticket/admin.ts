@@ -203,7 +203,7 @@ async function processCloseSubmission(interaction: any) {
       const dmContainer = createContainer(
         constants.colors.danger,
         createSection({
-          content: `### Atendimento Encerrado\nOlá ${ownerMember}, seu atendimento foi encerrado por ${user}.`,
+          content: `### Atendimento Encerrado\nOlá ${ownerMember}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
           thumbnail: user.displayAvatarURL() as any,
         }),
         Separator.Default,
