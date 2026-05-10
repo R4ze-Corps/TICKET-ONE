@@ -385,6 +385,10 @@ createResponder({
           flags: ["Ephemeral"],
         });
 
+        // Garantir que o ticket seja marcado como fechado para o transcript mostrar a data
+        ticket.closed = true;
+        await (ticket as any).save();
+
         const guildData = await db.guilds.get(guild.id);
         const logChannelId = guildData.channels?.tickets;
 
@@ -529,7 +533,7 @@ async function generateTranscript(
     createdAt: ticket.openedAt
       ? new Date(ticket.openedAt).toISOString()
       : new Date().toISOString(),
-    closedAt: new Date().toISOString(),
+    closedAt: ticket.closed ? new Date().toISOString() : undefined,
     openedBy: {
       id: ticket.ownerId,
       username: ownerMember?.user.username || "Desconhecido",
