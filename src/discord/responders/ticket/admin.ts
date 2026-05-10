@@ -87,6 +87,13 @@ async function processCloseSubmission(interaction: any) {
       await interaction.deferReply({ ephemeral: true }).catch(() => {});
     }
     console.log("[Ticket] 1. Discord Acknowledged (Modal Closed)");
+
+    // Mensagem de feedback no canal
+    await channel
+      .send({
+        content: `<:action_info:1502789798983766016> O atendimento foi finalizado por ${user}. Gerando transcript e deletando o canal em instantes...`,
+      })
+      .catch(() => {});
   } catch (e) {
     console.error("[Ticket] Erro no Acknowledge:", e);
   }
