@@ -92,9 +92,9 @@ createCommand({
         }),
         Separator.Default,
         [
-          `<:apps_discord:1502789832106311811> Forneça o motivo e o máximo de informações possível para agilizar seu atendimento.`,
-          `<:apps_discord:1502789832106311811> Não chame membros da equipe no privado.`,
-          `<:apps_discord:1502789832106311811> Iniciar um atendimento sem um motivo coerente poderá resultar em punições.`,
+          `● Forneça o motivo e o máximo de informações possível para agilizar seu atendimento.`,
+          `● Não chame membros da equipe no privado.`,
+          `● Iniciar um atendimento sem um motivo coerente poderá resultar em punições.`,
         ].join("\n"),
         Separator.Default,
         "Clique no botão abaixo para iniciar o seu atendimento.",
