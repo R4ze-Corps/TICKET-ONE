@@ -49,7 +49,7 @@ function createMainPanel(ticket: any, owner: any) {
             emoji: "1502789931808981012",
           }),
           new ButtonBuilder({
-            customId: "ticket/manage/close",
+            customId: "ticket/manage/close_confirm", // Mudado para confirmação
             label: "Finalizar Ticket",
             style: ButtonStyle.Secondary,
             emoji: "1502789802918150206",
@@ -72,7 +72,7 @@ function createMainPanel(ticket: any, owner: any) {
     !isClaimed
       ? createRow(
           new ButtonBuilder({
-            customId: "ticket/manage/close",
+            customId: "ticket/manage/close_confirm", // Mudado para confirmação
             label: "Finalizar Ticket",
             style: ButtonStyle.Secondary,
             emoji: "1502789802918150206",
@@ -279,6 +279,42 @@ createResponder({
         break;
       }
 
+      case "close_confirm": {
+        const container = createContainer(
+          constants.colors.danger,
+          createSection({
+            content: `### Finalizar atendimento\nVocê está prestes a encerrar este atendimento, deseja continuar?`,
+            thumbnail: emojis.static.action_question as any,
+          }),
+          createRow(
+            new ButtonBuilder({
+              customId: "ticket/manage/close",
+              label: "Confirmar",
+              style: ButtonStyle.Secondary,
+            }),
+            new ButtonBuilder({
+              customId: "ticket/manage/cancel_close",
+              label: "Cancelar",
+              style: ButtonStyle.Secondary,
+            }),
+          ),
+        );
+
+        await interaction.reply({
+          components: [container],
+          flags: ["Ephemeral", "IsComponentsV2"],
+        });
+        break;
+      }
+
+      case "cancel_close": {
+        await interaction.update({
+          content: "O encerramento foi cancelado.",
+          components: [],
+        });
+        break;
+      }
+
       case "members":
       case "members_modal": {
         const modal = new ModalBuilder()
@@ -330,7 +366,17 @@ createResponder({
           return;
         }
 
-        await interaction.deferReply();
+        // Se veio do painel de confirmação (que é efêmero), precisamos avisar que estamos processando
+        if (
+          interaction.isButton() &&
+          interaction.message.flags.has("Ephemeral")
+        ) {
+          await interaction
+            .update({ content: "Encerrando ticket...", components: [] })
+            .catch(() => {});
+        } else {
+          await interaction.deferReply();
+        }
 
         const owner = await guild.members
           .fetch(ticket.ownerId)
@@ -372,10 +418,21 @@ createResponder({
           ),
         );
 
-        await interaction.editReply({
-          components: [container],
-          flags: ["IsComponentsV2"],
-        });
+        // Se for uma atualização (vindo da confirmação efêmera), mandamos a msg de encerramento no canal principal
+        if (
+          interaction.isButton() &&
+          interaction.message.flags.has("Ephemeral")
+        ) {
+          await channel.send({
+            components: [container],
+            flags: ["IsComponentsV2"],
+          });
+        } else {
+          await interaction.editReply({
+            components: [container],
+            flags: ["IsComponentsV2"],
+          });
+        }
 
         // Notificação Automática por DM ao fechar
         if (owner) {
@@ -401,7 +458,6 @@ createResponder({
             Separator.Default,
             createSection({
               content: `**Considerações Finais:**\n\`\`\`\nAtendimento concluído! Agradecemos o seu contato e ficamos à disposição para qualquer outra necessidade. Equipe de Suporte.\n\`\`\``,
-              thumbnail: emojis.static.action_info as any,
             }),
             createRow(
               new ButtonBuilder({
@@ -417,11 +473,7 @@ createResponder({
               components: [dmContainer],
               flags: ["IsComponentsV2"],
             })
-            .catch(() => {
-              console.log(
-                `[Ticket] Não foi possível enviar DM de fechamento para ${owner.user.tag}`,
-              );
-            });
+            .catch(() => {});
         }
         break;
       }

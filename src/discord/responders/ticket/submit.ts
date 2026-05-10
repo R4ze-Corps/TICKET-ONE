@@ -114,7 +114,7 @@ async function processTicketSubmission(interaction: any) {
       ),
       createRow(
         new ButtonBuilder({
-          customId: "ticket/manage/close",
+          customId: "ticket/manage/close_confirm",
           label: "Finalizar Ticket",
           style: ButtonStyle.Secondary,
           emoji: "1502789802918150206",
