@@ -171,6 +171,7 @@ createResponder({
               emoji: "1502789976327327801",
             }),
           }),
+          Separator.Default,
           createSection({
             content: `● **Renomar**\nNesta opção você pode alterar o nome do atendimento para ter melhor controle.`,
             button: new ButtonBuilder({
@@ -180,6 +181,7 @@ createResponder({
               emoji: "1502789881250709675",
             }),
           }),
+          Separator.Default,
           createSection({
             content: `● **Notificar**\nNesta opção será enviada uma mensagem no privado do autor do atendimento.`,
             button: new ButtonBuilder({
@@ -189,6 +191,7 @@ createResponder({
               emoji: "1502789798983766016",
             }),
           }),
+          Separator.Default,
           createSection({
             content: `● **Transferir Atendimento**\nNesta opção você pode alterar a categoria do atendimento.`,
             button: new ButtonBuilder({
@@ -198,6 +201,7 @@ createResponder({
               emoji: "1502789875928400103",
             }),
           }),
+          Separator.Default,
           createSection({
             content: `● **Largar Atendimento**\nNesta opção você pode deixar de ser o responsável pelo atendimento.`,
             button: isTheClaimer
@@ -215,6 +219,7 @@ createResponder({
                   disabled: true,
                 }),
           }),
+          Separator.Default,
           createRow(
             new ButtonBuilder({
               customId: "ticket/manage/transcript",
