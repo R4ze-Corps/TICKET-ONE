@@ -11,12 +11,66 @@ import { ButtonBuilder, ButtonStyle } from "discord.js";
 import { db } from "#database";
 import { generateTranscript } from "./manage.js";
 
+// Função compartilhada para renomear
+async function processRename(interaction: any) {
+  const { channel, fields } = interaction;
+  if (!channel?.isTextBased()) return;
+
+  try {
+    const data = modalFieldsToRecord(fields);
+    const newName = data.new_name as string;
+
+    if (!newName) {
+      await interaction.reply({
+        content: "Nome inválido.",
+        flags: ["Ephemeral"],
+      });
+      return;
+    }
+
+    await interaction.deferReply({ flags: ["Ephemeral"] });
+
+    const toolEmoji = "🔨";
+    const formattedName = `${toolEmoji}・${newName.replace(/\s+/g, "-").toLowerCase()}`;
+
+    await (channel as any).setName(formattedName).catch((err: any) => {
+      console.error("Erro ao renomear canal:", err);
+    });
+
+    await interaction.editReply({
+      content: `<:action_check:1502789797821939752> Canal renomeado para: \`${formattedName}\``,
+    });
+  } catch (error) {
+    console.error("[Renomear] Erro ao processar:", error);
+  }
+}
+
+// Responder Original
+createResponder({
+  customId: "ticket/manage/rename_submit",
+  types: [ResponderType.Modal, ResponderType.ModalComponent],
+  cache: "cached",
+  async run(interaction) {
+    await processRename(interaction);
+  },
+});
+
+// Responder de Backup
+createResponder({
+  customId: "Renomear Ticket",
+  types: [ResponderType.Modal, ResponderType.ModalComponent],
+  cache: "cached",
+  async run(interaction) {
+    await processRename(interaction);
+  },
+});
+
 // Responder que recebe as considerações finais e finaliza o ticket
 createResponder({
   customId: "ticket/manage/close_submit",
   types: [ResponderType.Modal, ResponderType.ModalComponent],
   cache: "cached",
-  async run(interaction) {
+  async run(interaction: any) {
     const { channel, user, fields, guild } = interaction;
     if (!channel?.isTextBased()) return;
 
@@ -31,19 +85,23 @@ createResponder({
       return;
     }
 
-    // 1. Acknowledge imediato (modal de dentro do painel admin costuma ser ModalComponent)
-    await interaction
-      .update({
-        content: "Encerrando ticket e enviando considerações...",
-        components: [],
-      })
-      .catch(() => {});
+    // 1. Defer Update (Para modais de botões, o update é válido se for ModalComponent)
+    if (typeof interaction.update === "function") {
+      await interaction
+        .update({
+          content: "Encerrando ticket e enviando considerações...",
+          components: [],
+        })
+        .catch(() => {});
+    } else {
+      await interaction.deferReply({ flags: ["Ephemeral"] }).catch(() => {});
+    }
 
     const data = modalFieldsToRecord(fields);
     const considerations =
       (data.considerations as string) || "Atendimento concluído.";
 
-    // 2. Lógica de Fechamento (Cópia da lógica do manage.ts adaptada)
+    // 2. Lógica de Fechamento
     const owner = await guild.members.fetch(ticket.ownerId).catch(() => null);
     if (owner) {
       await (channel as any).permissionOverwrites.edit(owner.id, {
@@ -63,7 +121,6 @@ createResponder({
       user,
     );
     const closeTime = Math.floor(Date.now() / 1000);
-    const openTime = Math.floor(new Date(ticket.openedAt).getTime() / 1000);
 
     // 3. Painel de Canal Encerrado
     const channelContainer = createContainer(
@@ -98,6 +155,7 @@ createResponder({
 
     // 4. Enviar DM Premium com as considerações digitadas
     if (owner) {
+      const openTime = Math.floor(new Date(ticket.openedAt).getTime() / 1000);
       const dmContainer = createContainer(
         constants.colors.danger,
         createSection({
