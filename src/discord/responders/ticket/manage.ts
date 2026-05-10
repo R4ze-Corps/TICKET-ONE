@@ -84,10 +84,10 @@ function createMainPanel(ticket: any, owner: any) {
 }
 
 createResponder({
-  customId: "ticket/manage/:action/:choice?",
+  customId: "ticket/manage/:action",
   types: [ResponderType.Button],
   cache: "cached",
-  async run(interaction, { action, "choice?": choice }) {
+  async run(interaction, { action }) {
     const { channel, user, guild } = interaction;
 
     if (!channel?.isTextBased()) return;
@@ -289,20 +289,18 @@ createResponder({
           .setLabel("Transcript:")
           .setDescription("Deseja salvar o histórico deste atendimento?")
           .setRadioGroupComponent(
-            new RadioGroupBuilder()
-              .setCustomId("transcript_choice")
-              .setOptions(
-                {
-                  label: "Salvar Transcript",
-                  value: "yes",
-                  description: "O log será gerado e enviado para a Staff.",
-                },
-                {
-                  label: "Não Salvar Transcript",
-                  value: "no",
-                  description: "O ticket será fechado sem gerar log público.",
-                },
-              ),
+            new RadioGroupBuilder().setCustomId("transcript_choice").setOptions(
+              {
+                label: "Salvar Transcript",
+                value: "yes",
+                description: "O log será gerado e enviado para a Staff.",
+              },
+              {
+                label: "Não Salvar Transcript",
+                value: "no",
+                description: "O ticket será fechado sem gerar log público.",
+              },
+            ),
           );
 
         const considerationsLabel = new LabelBuilder()
