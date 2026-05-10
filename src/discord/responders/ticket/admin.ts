@@ -6,6 +6,7 @@ import {
   modalFieldsToRecord,
   Separator,
   createRow,
+  createEmbed,
 } from "@magicyan/discord";
 import { ButtonBuilder, ButtonStyle } from "discord.js";
 import { db } from "#database";
@@ -65,7 +66,7 @@ createResponder({
   },
 });
 
-// Responder que recebe as considerações finais e finaliza o ticket
+// Responder que recebe as considerações finais e finaliza TUDO (fecha, gera log e deleta)
 createResponder({
   customId: "ticket/manage/close_submit",
   types: [ResponderType.Modal, ResponderType.ModalComponent],
@@ -73,8 +74,6 @@ createResponder({
   async run(interaction: any) {
     const { channel, user, fields, guild } = interaction;
     if (!channel?.isTextBased()) return;
-
-    console.log(">>> [Ticket] FINALIZANDO COM CONSIDERAÇÕES...");
 
     const ticket = await db.tickets.getByChannel(channel.id);
     if (!ticket) {
@@ -85,11 +84,11 @@ createResponder({
       return;
     }
 
-    // 1. Defer Update (Para modais de botões, o update é válido se for ModalComponent)
+    // 1. Notificação de processamento
     if (typeof interaction.update === "function") {
       await interaction
         .update({
-          content: "Encerrando ticket e enviando considerações...",
+          content: "Finalizando ticket e gerando registros...",
           components: [],
         })
         .catch(() => {});
@@ -101,15 +100,7 @@ createResponder({
     const considerations =
       (data.considerations as string) || "Atendimento concluído.";
 
-    // 2. Lógica de Fechamento
-    const owner = await guild.members.fetch(ticket.ownerId).catch(() => null);
-    if (owner) {
-      await (channel as any).permissionOverwrites.edit(owner.id, {
-        SendMessages: false,
-        ViewChannel: true,
-      });
-    }
-
+    // 2. Lógica de Fechamento no Banco
     ticket.closed = true;
     ticket.closedBy = user.id;
     ticket.closedAt = new Date();
@@ -120,46 +111,61 @@ createResponder({
       ticket,
       user,
     );
-    const closeTime = Math.floor(Date.now() / 1000);
 
-    // 3. Painel de Canal Encerrado
-    const channelContainer = createContainer(
-      constants.colors.danger,
-      createSection({
-        content: `### Ticket Encerrado\nEste atendimento foi finalizado por ${user}.\nAs considerações finais foram enviadas ao usuário.`,
-        thumbnail: user.displayAvatarURL() as any,
-      }),
-      Separator.Default,
-      `**Resumo do Encerramento**\n> **Fechado em:** <t:${closeTime}:F>\n> **Status:** \`FECHADO / ARQUIVADO\``,
-      Separator.Default,
-      createRow(
-        new ButtonBuilder({
-          customId: "ticket/manage/delete",
-          label: "Excluir Canal",
-          style: ButtonStyle.Secondary,
-          emoji: "1502789802918150206",
-        }),
-        new ButtonBuilder({
-          customId: "ticket/manage/reopen",
-          label: "Reabrir Ticket",
-          style: ButtonStyle.Secondary,
-          emoji: "1502789944408674304",
-        }),
-      ),
-    );
+    // 3. Enviar Log para o Canal de Staff
+    const guildData = await db.guilds.get(guild.id);
+    const logChannelId = guildData.channels?.tickets;
+    if (logChannelId) {
+      const logChannel = guild.channels.cache.get(logChannelId);
+      if (logChannel?.isTextBased()) {
+        const owner = await guild.members
+          .fetch(ticket.ownerId)
+          .catch(() => null);
+        const embed = createEmbed({
+          title: "Log de Ticket Finalizado",
+          color: constants.colors.danger,
+          thumbnail: owner?.displayAvatarURL(),
+          fields: [
+            {
+              name: "Dono",
+              value: `${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
+              inline: true,
+            },
+            {
+              name: "Finalizado por",
+              value: `${user} (\`${user.id}\`)`,
+              inline: true,
+            },
+            { name: "Categoria", value: ticket.category, inline: true },
+          ],
+          footer: { text: `ID: ${ticket.ticketId}` },
+          timestamp: new Date(),
+        });
 
-    await channel.send({
-      components: [channelContainer],
-      flags: ["IsComponentsV2"],
-    });
+        const row = createRow(
+          new ButtonBuilder({
+            label: "Ver Transcript Online",
+            style: ButtonStyle.Link,
+            url: transcriptUrl,
+          }),
+        );
 
-    // 4. Enviar DM Premium com as considerações digitadas
-    if (owner) {
+        await logChannel.send({ embeds: [embed], components: [row] });
+      }
+    }
+
+    // 4. Enviar DM para o usuário
+    const ownerMember = await guild.members
+      .fetch(ticket.ownerId)
+      .catch(() => null);
+    if (ownerMember) {
       const openTime = Math.floor(new Date(ticket.openedAt).getTime() / 1000);
+      const closeTime = Math.floor(Date.now() / 1000);
+
       const dmContainer = createContainer(
         constants.colors.danger,
         createSection({
-          content: `### Atendimento Encerrado\nOlá ${owner}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
+          content: `### Atendimento Encerrado\nOlá ${ownerMember}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
           thumbnail: user.displayAvatarURL() as any,
         }),
         Separator.Default,
@@ -176,12 +182,15 @@ createResponder({
         ),
       );
 
-      await owner
+      await ownerMember
         .send({
           components: [dmContainer],
           flags: ["IsComponentsV2"],
         })
         .catch(() => {});
     }
+
+    // 5. Deletar o canal após 3 segundos
+    setTimeout(() => channel.delete().catch(() => {}), 3000);
   },
 });
