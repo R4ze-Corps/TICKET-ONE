@@ -172,7 +172,7 @@ createResponder({
             {
               label: "Suporte Geral",
               value: "suporte",
-              emoji: "1502789959378145300",
+              emoji: "1502789958430232688",
             },
             {
               label: "Denúncia",

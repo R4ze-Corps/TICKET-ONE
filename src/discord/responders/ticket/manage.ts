@@ -232,10 +232,22 @@ createResponder({
               customId: "ticket/manage/transfer_select",
               placeholder: "Escolha uma categoria...",
               options: [
-                { label: "Suporte", value: "suporte", emoji: "🔨" },
-                { label: "Denúncia", value: "denuncia", emoji: "🛡️" },
-                { label: "Financeiro", value: "financeiro", emoji: "💰" },
-                { label: "Bugs", value: "bugs", emoji: "🐛" },
+                {
+                  label: "Suporte",
+                  value: "suporte",
+                  emoji: "1502789958430232688",
+                },
+                {
+                  label: "Denúncia",
+                  value: "denuncia",
+                  emoji: "1502789938532450304",
+                },
+                {
+                  label: "Financeiro",
+                  value: "financeiro",
+                  emoji: "1502789953334280345",
+                },
+                { label: "Bugs", value: "bugs", emoji: "1502789951400444126" },
               ],
             }),
           ),
