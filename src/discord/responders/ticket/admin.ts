@@ -66,36 +66,50 @@ createResponder({
   },
 });
 
-// Função compartilhada para finalização
-async function processCloseSubmission(
-  interaction: any,
-  transcriptChoice: string,
-) {
-  const { channel, user, fields, guild } = interaction;
-  if (!channel?.isTextBased()) return;
+// Responder que recebe a finalização unificada via Modal V2
+createResponder({
+  customId: "ticket/manage/close_submit",
+  types: [ResponderType.Modal, ResponderType.ModalComponent],
+  cache: "cached",
+  async run(interaction: any) {
+    const { channel, user, fields, guild } = interaction;
+    if (!channel?.isTextBased()) return;
 
-  console.log(">>> [Ticket] FINALIZANDO TUDO...");
+    console.log(">>> [Ticket] FINALIZANDO TUDO (MODAL V2)...");
 
-  // 1. Acknowledge imediato (O MAIS IMPORTANTE PARA NÃO DAR ERRO NO DISCORD)
-  if (interaction.isModalSubmit()) {
-    if (interaction.isFromMessage()) {
-      await interaction.deferUpdate().catch(() => {});
-    } else {
-      await interaction.deferReply({ flags: ["Ephemeral"] }).catch(() => {});
-    }
-  }
-
-  try {
     const ticket = await db.tickets.getByChannel(channel.id);
     if (!ticket) {
-      console.error("[Ticket] Erro: Ticket não encontrado no banco.");
+      await interaction.reply({
+        content: "Erro: Ticket não encontrado no banco.",
+        flags: ["Ephemeral"],
+      });
       return;
     }
 
+    // 1. Acknowledge imediato
+    if (typeof interaction.update === "function") {
+      await interaction
+        .update({
+          content: "Finalizando ticket e processando dados...",
+          components: [],
+        })
+        .catch(() => {});
+    } else {
+      await interaction.deferReply({ flags: ["Ephemeral"] }).catch(() => {});
+    }
+
     const data = modalFieldsToRecord(fields);
+
+    // Extrair escolha do transcript (RadioGroup)
+    const transcriptChoiceRaw = data.transcript_choice;
+    const wantTranscript =
+      (Array.isArray(transcriptChoiceRaw)
+        ? transcriptChoiceRaw[0]
+        : transcriptChoiceRaw) === "yes";
+
+    // Extrair considerações finais
     const considerations =
       (data.considerations as string) || "Atendimento concluído.";
-    const wantTranscript = transcriptChoice === "yes";
 
     // 2. Lógica de Fechamento no Banco
     ticket.closed = true;
@@ -108,7 +122,7 @@ async function processCloseSubmission(
       transcriptUrl = await generateTranscript(channel as any, ticket, user);
     }
 
-    // 3. Enviar Log para o Canal de Staff
+    // 3. Enviar Log para o Canal de Staff (se quis transcript)
     if (wantTranscript) {
       const guildData = await db.guilds.get(guild.id);
       const logChannelId = guildData.channels?.tickets;
@@ -193,30 +207,24 @@ async function processCloseSubmission(
     }
 
     // 5. Deletar o canal
-    setTimeout(() => channel.delete().catch(() => {}), 2000);
-  } catch (err) {
-    console.error("[Ticket] Erro crítico no fechamento:", err);
-  }
-}
-
-// Responder que recebe as considerações finais
-createResponder({
-  customId: "ticket/manage/close_submit/:transcript",
-  types: [ResponderType.Modal, ResponderType.ModalComponent],
-  cache: "cached",
-  async run(interaction, { transcript }) {
-    await processCloseSubmission(interaction, transcript);
+    setTimeout(() => channel.delete().catch(() => {}), 3000);
   },
 });
 
-// Backup para o ID de título do modal
+// Backup para o ID de título
 createResponder({
   customId: "Finalizar Atendimento",
   types: [ResponderType.Modal, ResponderType.ModalComponent],
   cache: "cached",
   async run(interaction) {
-    console.log(">>> [Ticket] Finalização capturada pelo backup de título!");
-    // Como o título não carrega o parâmetro :transcript, assumimos "yes" como padrão no backup
-    await processCloseSubmission(interaction, "yes");
+    // Redireciona para o responder oficial de submissão
+    const mainResponder = (this as any).handlers
+      ?.get(
+        interaction.isFromMessage()
+          ? ResponderType.ModalComponent
+          : ResponderType.Modal,
+      )
+      ?.get("ticket/manage/close_submit");
+    if (mainResponder) return mainResponder.run(interaction);
   },
 });

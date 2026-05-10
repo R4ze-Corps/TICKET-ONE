@@ -17,6 +17,7 @@ import {
   LabelBuilder,
   TextChannel,
   PermissionFlagsBits,
+  RadioGroupBuilder,
 } from "discord.js";
 import { db } from "#database";
 import { env } from "#env";
@@ -49,7 +50,7 @@ function createMainPanel(ticket: any, owner: any) {
             emoji: "1502789931808981012",
           }),
           new ButtonBuilder({
-            customId: "ticket/manage/close_confirm",
+            customId: "ticket/manage/close_modal", // Abre o modal diretamente
             label: "Finalizar Ticket",
             style: ButtonStyle.Secondary,
             emoji: "1502789802918150206",
@@ -72,7 +73,7 @@ function createMainPanel(ticket: any, owner: any) {
     !isClaimed
       ? createRow(
           new ButtonBuilder({
-            customId: "ticket/manage/close_confirm",
+            customId: "ticket/manage/close_modal", // Abre o modal diretamente
             label: "Finalizar Ticket",
             style: ButtonStyle.Secondary,
             emoji: "1502789802918150206",
@@ -86,7 +87,7 @@ createResponder({
   customId: "ticket/manage/:action/:choice?",
   types: [ResponderType.Button],
   cache: "cached",
-  async run(interaction, { action, "choice?": choice }) {
+  async run(interaction, { action }) {
     const { channel, user, guild } = interaction;
 
     if (!channel?.isTextBased()) return;
@@ -279,67 +280,45 @@ createResponder({
         break;
       }
 
-      case "close_confirm": {
-        const container = createContainer(
-          constants.colors.danger,
-          createSection({
-            content: `### Finalizar atendimento\nDeseja gerar o transcript deste atendimento?`,
-            thumbnail: emojis.static.action_question as any,
-          }),
-          createRow(
-            new ButtonBuilder({
-              customId: "ticket/manage/close_modal/yes",
-              label: "Sim",
-              style: ButtonStyle.Success,
-            }),
-            new ButtonBuilder({
-              customId: "ticket/manage/close_modal/no",
-              label: "Não",
-              style: ButtonStyle.Danger,
-            }),
-            new ButtonBuilder({
-              customId: "ticket/manage/cancel_close",
-              label: "Cancelar",
-              style: ButtonStyle.Secondary,
-            }),
-          ),
-        );
-
-        await interaction.reply({
-          components: [container],
-          flags: ["Ephemeral", "IsComponentsV2"],
-        });
-        break;
-      }
-
       case "close_modal": {
         const modal = new ModalBuilder()
-          .setCustomId(`ticket/manage/close_submit/${choice}`) // Passa sim ou não para o submit
+          .setCustomId("ticket/manage/close_submit")
           .setTitle("Finalizar Atendimento");
 
-        const label = new LabelBuilder()
-          .setLabel("Considerações Finais")
-          .setDescription("Descreva o que foi feito ou deixe um agradecimento.")
+        const transcriptLabel = new LabelBuilder()
+          .setLabel("Transcript:")
+          .setDescription("Deseja salvar o histórico deste atendimento?")
+          .setRequired(true)
+          .setRadioGroupComponent(
+            new RadioGroupBuilder()
+              .setCustomId("transcript_choice")
+              .setOptions(
+                {
+                  label: "Salvar Transcript",
+                  value: "yes",
+                  description: "O log será gerado e enviado para a Staff.",
+                },
+                {
+                  label: "Não Salvar Transcript",
+                  value: "no",
+                  description: "O ticket será fechado sem gerar log público.",
+                },
+              ),
+          );
+
+        const considerationsLabel = new LabelBuilder()
+          .setLabel("Considerações Finais:")
+          .setRequired(true)
           .setTextInputComponent(
             new TextInputBuilder()
               .setCustomId("considerations")
-              .setPlaceholder(
-                "ex: Atendimento concluído! Agradecemos o contato.",
-              )
+              .setPlaceholder("Escreva aqui as considerações finais...")
               .setStyle(TextInputStyle.Paragraph)
               .setRequired(true),
           );
 
-        modal.addComponents(label);
+        modal.addComponents(transcriptLabel, considerationsLabel);
         await interaction.showModal(modal);
-        break;
-      }
-
-      case "cancel_close": {
-        await interaction.update({
-          content: "O encerramento foi cancelado.",
-          components: [],
-        });
         break;
       }
 
@@ -393,73 +372,12 @@ createResponder({
           });
           return;
         }
-
-        // Se veio do painel de confirmação (que é efêmero), precisamos avisar que estamos processando
-        if (
-          interaction.isButton() &&
-          interaction.message.flags.has("Ephemeral")
-        ) {
-          await interaction
-            .update({ content: "Encerrando ticket...", components: [] })
-            .catch(() => {});
-        } else {
-          await interaction.deferReply();
-        }
-
-        const owner = await guild.members
-          .fetch(ticket.ownerId)
-          .catch(() => null);
-        if (owner) {
-          await (channel as any).permissionOverwrites.edit(owner.id, {
-            SendMessages: false,
-            ViewChannel: true,
-          });
-        }
-
-        ticket.closed = true;
-        ticket.closedBy = user.id;
-        ticket.closedAt = new Date();
-        await (ticket as any).save();
-
-        const container = createContainer(
-          constants.colors.danger,
-          createSection({
-            content: `### Ticket Encerrado\nEste atendimento foi finalizado por ${user}. O histórico de mensagens foi preservado para auditoria.`,
-            thumbnail: user.displayAvatarURL() as any,
-          }),
-          Separator.Default,
-          `**Resumo do Encerramento**\n> **Fechado em:** <t:${Math.floor(Date.now() / 1000)}:F>\n> **Status:** \`FECHADO / ARQUIVADO\``,
-          Separator.Default,
-          createRow(
-            new ButtonBuilder({
-              customId: "ticket/manage/delete",
-              label: "Excluir Canal",
-              style: ButtonStyle.Secondary,
-              emoji: "1502789802918150206",
-            }),
-            new ButtonBuilder({
-              customId: "ticket/manage/reopen",
-              label: "Reabrir Ticket",
-              style: ButtonStyle.Secondary,
-              emoji: "1502789944408674304",
-            }),
-          ),
-        );
-
-        if (
-          interaction.isButton() &&
-          interaction.message.flags.has("Ephemeral")
-        ) {
-          await channel.send({
-            components: [container],
-            flags: ["IsComponentsV2"],
-          });
-        } else {
-          await interaction.editReply({
-            components: [container],
-            flags: ["IsComponentsV2"],
-          });
-        }
+        // Fallback caso alguém use o ID antigo ou direto
+        await interaction.reply({
+          content:
+            "Por favor, use o botão de finalizar para abrir o formulário.",
+          flags: ["Ephemeral"],
+        });
         break;
       }
 
