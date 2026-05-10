@@ -86,7 +86,7 @@ createResponder({
   customId: "ticket/manage/:action/:choice?",
   types: [ResponderType.Button],
   cache: "cached",
-  async run(interaction, { action, choice }) {
+  async run(interaction, { action, "choice?": choice }) {
     const { channel, user, guild } = interaction;
 
     if (!channel?.isTextBased()) return;
