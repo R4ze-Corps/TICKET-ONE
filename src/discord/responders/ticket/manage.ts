@@ -456,9 +456,7 @@ createResponder({
             `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`,
             `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
             Separator.Default,
-            createSection({
-              content: `**Considerações Finais:**\n\`\`\`\nAtendimento concluído! Agradecemos o seu contato e ficamos à disposição para qualquer outra necessidade. Equipe de Suporte.\n\`\`\``,
-            }),
+            `**Considerações Finais:**\n\`\`\`\nAtendimento concluído! Agradecemos o seu contato e ficamos à disposição para qualquer outra necessidade. Equipe de Suporte.\n\`\`\``,
             createRow(
               new ButtonBuilder({
                 label: "Acessar Transcript",
