@@ -87,7 +87,7 @@ createResponder({
   customId: "ticket/manage/:action/:choice?",
   types: [ResponderType.Button],
   cache: "cached",
-  async run(interaction, { action }) {
+  async run(interaction, { action, "choice?": choice }) {
     const { channel, user, guild } = interaction;
 
     if (!channel?.isTextBased()) return;
@@ -288,7 +288,6 @@ createResponder({
         const transcriptLabel = new LabelBuilder()
           .setLabel("Transcript:")
           .setDescription("Deseja salvar o histórico deste atendimento?")
-          .setRequired(true)
           .setRadioGroupComponent(
             new RadioGroupBuilder()
               .setCustomId("transcript_choice")
@@ -308,7 +307,6 @@ createResponder({
 
         const considerationsLabel = new LabelBuilder()
           .setLabel("Considerações Finais:")
-          .setRequired(true)
           .setTextInputComponent(
             new TextInputBuilder()
               .setCustomId("considerations")
@@ -372,7 +370,6 @@ createResponder({
           });
           return;
         }
-        // Fallback caso alguém use o ID antigo ou direto
         await interaction.reply({
           content:
             "Por favor, use o botão de finalizar para abrir o formulário.",
