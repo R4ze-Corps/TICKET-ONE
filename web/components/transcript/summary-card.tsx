@@ -1,43 +1,49 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, MessageSquare, User, Tag, Clock, Hash } from "lucide-react"
-import type { Transcript } from "@/lib/types"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Calendar, MessageSquare, User, Tag, Clock, Hash } from "lucide-react";
+import type { Transcript } from "@/lib/types";
 
 interface SummaryCardProps {
-  transcript: Transcript
+  transcript: Transcript;
 }
 
 export function SummaryCard({ transcript }: SummaryCardProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    // Use UTC methods to avoid hydration mismatch
-    const day = date.getUTCDate()
-    const month = date.toLocaleString("pt-BR", { month: "long", timeZone: "UTC" })
-    const year = date.getUTCFullYear()
-    const hours = date.getUTCHours().toString().padStart(2, "0")
-    const minutes = date.getUTCMinutes().toString().padStart(2, "0")
-    return `${day} de ${month} de ${year} às ${hours}:${minutes}`
-  }
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Data não disponível";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Data inválida";
+
+      const day = date.getDate();
+      const month = date.toLocaleString("pt-BR", { month: "long" });
+      const year = date.getFullYear();
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      return `${day} de ${month} de ${year} às ${hours}:${minutes}`;
+    } catch {
+      return "Erro ao formatar data";
+    }
+  };
 
   const getInitials = (username?: string) => {
-    if (!username) return "?"
+    if (!username) return "?";
     return username
       .split(" ")
       .map((n) => n[0])
       .join("")
       .slice(0, 2)
-      .toUpperCase()
-  }
+      .toUpperCase();
+  };
 
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold text-foreground">
-            Resumo da Transcricao
+            Resumo da Transcrição
           </CardTitle>
           <Badge variant="outline" className="font-mono">
             #{transcript.id}
@@ -52,7 +58,9 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Aberto em</p>
-              <p className="text-sm font-medium text-foreground">{formatDate(transcript.createdAt)}</p>
+              <p className="text-sm font-medium text-foreground">
+                {formatDate(transcript.createdAt)}
+              </p>
             </div>
           </div>
 
@@ -63,7 +71,9 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Fechado em</p>
-                <p className="text-sm font-medium text-foreground">{formatDate(transcript.closedAt)}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {formatDate(transcript.closedAt)}
+                </p>
               </div>
             </div>
           )}
@@ -73,8 +83,12 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
               <MessageSquare className="h-4 w-4 text-chart-2" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Total de Mensagens</p>
-              <p className="text-sm font-medium text-foreground">{transcript.messageCount}</p>
+              <p className="text-xs text-muted-foreground">
+                Total de Mensagens
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                {transcript.messageCount}
+              </p>
             </div>
           </div>
 
@@ -85,7 +99,9 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Canal</p>
-                <p className="text-sm font-medium text-foreground">{transcript.channelName}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {transcript.channelName}
+                </p>
               </div>
             </div>
           )}
@@ -101,7 +117,9 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
             </Avatar>
             <div>
               <p className="text-xs text-muted-foreground">Aberto por</p>
-              <p className="text-sm font-medium text-foreground">{transcript.openedBy.username}</p>
+              <p className="text-sm font-medium text-foreground">
+                {transcript.openedBy.username}
+              </p>
             </div>
           </div>
 
@@ -117,7 +135,9 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
               </Avatar>
               <div>
                 <p className="text-xs text-muted-foreground">Fechado por</p>
-                <p className="text-sm font-medium text-foreground">{transcript.closedBy.username}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {transcript.closedBy.username}
+                </p>
               </div>
             </div>
           )}
@@ -141,12 +161,14 @@ export function SummaryCard({ transcript }: SummaryCardProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Servidor</p>
-                <p className="text-sm font-medium text-foreground">{transcript.guildName}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {transcript.guildName}
+                </p>
               </div>
             </div>
           )}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
