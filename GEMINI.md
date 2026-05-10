@@ -7,42 +7,42 @@
 # Sistema de Tickets - Documentação do Projeto
 
 ## 🚀 Funcionalidades Implementadas
-O sistema foi desenvolvido utilizando as tecnologias mais recentes do Discord (**Components V2** e **Modais V2**) via framework **Constatic**.
+O sistema foi desenvolvido utilizando as tecnologias mais recentes do Discord (**Components V2** e **Modais V2**) via framework **Constatic**, com foco em uma identidade visual premium utilizando ícones customizados.
 
 ### 1. Sistema de Abertura (Painel Principal)
 - **Comando**: `/ticket painel` - Envia o painel de abertura de tickets.
-- **Visual**: Utiliza `createContainer` (Azoxo) com cabeçalho limpo e avatar do usuário.
-- **Formulário**: Ao clicar em "Abrir Ticket", abre um **Modal V2** contendo um Select Menu de Categorias e um campo de Descrição.
+- **Visual**: Design moderno com `createContainer` (Azoxo), incluindo cabeçalho com ícone, texto de boas-vindas e uma lista de diretrizes numeradas com bullet points.
+- **Formulário**: Modal interativo para seleção de categoria (com ícones customizados) e descrição do problema.
 
-### 2. Roteamento Inteligente
-- **Comando**: `/ticket configurar` - Define canal de logs e categorias específicas para cada assunto.
-- **Lógica**: Tickets de *Suporte*, *Denúncia*, *Financeiro* e *Bugs* são criados automaticamente em suas respectivas categorias configuradas no Discord.
+### 2. Roteamento e Transferência
+- **Comando**: `/ticket configurar` - Define canal de logs e categorias de destino.
+- **Lógica**: Criação automática em categorias específicas (*Suporte*, *Denúncia*, *Financeiro*, *Bugs*).
+- **Transferência**: Staff pode mover o ticket entre categorias a qualquer momento via Painel Administrativo, atualizando o canal no Discord e os dados no banco.
 
-### 3. Gerenciamento de Tickets
-- **Claim (Assumir)**: Staff pode assumir o ticket. O painel se atualiza com o avatar do staff e o dono recebe uma **DM de Notificação**.
-- **Largar Atendimento**: Staff pode devolver o ticket ao estado de "Aguardando", restaurando o botão de assumir.
-- **Painel Admin**: Menu efêmero (privado) com ferramentas:
-  - **Membros**: Adicionar/Remover usuários via Select Menu dentro de modal.
-  - **Renomear**: Mudar o nome do canal mantendo o ID.
-  - **Notificar**: Envia uma DM manual chamando o usuário de volta ao ticket.
-  - **Transcript**: Gera log manual em tempo real.
+### 3. Gerenciamento de Tickets (Painel Admin)
+O Painel Administrativo foi redesenhado para um estilo "Dashboard" com seções e separadores:
+- **Membros**: Gerenciamento de acessos (Adicionar/Remover).
+- **Renomear**: Alteração dinâmica do nome do canal.
+- **Notificar**: Envio de DM automática ao dono do ticket.
+- **Transferir**: Menu de seleção para trocar a categoria do atendimento.
+- **Largar/Assumir**: Sistema de claim para staff com feedback visual e logs.
+- **Transcript**: Geração manual ou automática de logs.
 
 ### 4. Ciclo de Vida e Transcript Online
-- **Finalização**: Processo interativo onde o staff preenche as **Considerações Finais** e escolhe se quer salvar o transcript.
-- **Transcript Web**: Sistema integrado com **Next.js hospedado na Vercel** (`ticket-topaz.vercel.app`).
-- **Logs Automáticos**: Ao deletar o canal, o bot salva todas as mensagens no banco e envia o link do log para o canal de Staff.
+- **Finalização**: Processo com preenchimento de **Considerações Finais** e salvamento de log.
+- **Transcript Web**: Sistema integrado com **Next.js** (`ticket-topaz.vercel.app`).
+- **Detalhes do Contato**: O site agora exibe o **Motivo da Abertura** escrito pelo usuário, além do resumo de mensagens.
+- **Visual Logs**: Logs na Staff e na DM do usuário utilizam design limpo com separadores, cores teal (#00FFD4) e ícones de alta qualidade.
 
 ## 🛠️ Detalhes Técnicos
 - **Banco de Dados**: MongoDB Atlas (Coleções: `guilds`, `tickets`, `transcripts`).
-- **Framework**: `@constatic/base` + `@magicyan/discord`.
-- **Hospedagem Web**: Vercel (conectado via GitHub).
-- **Variáveis de Ambiente**:
-  - `MONGO_URI`: Conexão com o banco.
-  - `WEB_URL`: Link base do site na Vercel para geração de transcripts.
+- **Framework Bot**: `@constatic/base` + `@magicyan/discord`.
+- **Interface Web**: Next.js 14+ com Tailwind CSS e Lucide Icons.
+- **Identidade Visual**: Uso extensivo de emojis customizados (`emojis.json`) e constantes de cores (`constants.json`).
 
 ## 📂 Estrutura de Arquivos Principais
-- `src/discord/commands/staff/ticket.ts`: Configuração e Painel.
-- `src/discord/responders/ticket/submit.ts`: Abertura e Modais.
-- `src/discord/responders/ticket/manage.ts`: Botões de gestão e Transcript.
-- `src/discord/responders/ticket/admin.ts`: Lógica de Renomear e Finalização.
+- `src/discord/commands/staff/ticket.ts`: Configuração, Painel Principal e Roteamento.
+- `src/discord/responders/ticket/submit.ts`: Lógica de abertura, Modais e Categorias.
+- `src/discord/responders/ticket/manage.ts`: Painel Administrativo, Transferência e Geração de Dados de Transcript.
+- `src/discord/responders/ticket/admin.ts`: Lógica de Finalização, Envio de Logs e DMs de encerramento.
 - `web/`: Aplicação Next.js para visualização dos logs.
