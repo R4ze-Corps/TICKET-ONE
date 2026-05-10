@@ -156,59 +156,72 @@ createResponder({
         const isTheClaimer = ticket.claimedBy === user.id;
 
         const container = createContainer(
-          constants.colors.secondary,
+          "#00FFD4",
           createSection({
-            content: `### <:other_terminal:1502789958430232688> Painel Administrativo\nUtilize as ferramentas abaixo para gerenciar este ticket de forma avançada.`,
+            content: `## <:shield:1502789938532450304> Painel Administrativo ${ticket.ticketId}\nSeja muito bem-vindo(a) ao Painel Administrativo! Este é o seu ambiente de controle, onde você pode gerenciar o atendimento atual. Caso tenha alguma dúvida sobre o funcionamento, entre em contato com a equipe responsável.`,
             thumbnail: user.displayAvatarURL() as any,
           }),
           Separator.Default,
-          createRow(
-            new ButtonBuilder({
+          createSection({
+            content: `● **Gerenciar usuário**\nNesta opção você pode adicionar/remover usuários do atendimento.`,
+            button: new ButtonBuilder({
               customId: "ticket/manage/members_modal",
-              label: "Membros",
+              label: "Gerenciar",
               style: ButtonStyle.Secondary,
               emoji: "1502789976327327801",
             }),
-            new ButtonBuilder({
+          }),
+          createSection({
+            content: `● **Renomar**\nNesta opção você pode alterar o nome do atendimento para ter melhor controle.`,
+            button: new ButtonBuilder({
               customId: "ticket/manage/rename_modal",
               label: "Renomear",
               style: ButtonStyle.Secondary,
               emoji: "1502789881250709675",
             }),
-            new ButtonBuilder({
-              customId: "ticket/manage/transfer",
-              label: "Transferir",
-              style: ButtonStyle.Secondary,
-              emoji: "1502789809142239243",
-            }),
-          ),
-          createRow(
-            new ButtonBuilder({
+          }),
+          createSection({
+            content: `● **Notificar**\nNesta opção será enviada uma mensagem no privado do autor do atendimento.`,
+            button: new ButtonBuilder({
               customId: "ticket/manage/notify",
               label: "Notificar",
               style: ButtonStyle.Secondary,
               emoji: "1502789798983766016",
             }),
-            new ButtonBuilder({
-              customId: "ticket/manage/transcript",
-              label: "Transcript",
+          }),
+          createSection({
+            content: `● **Transferir Atendimento**\nNesta opção você pode alterar a categoria do atendimento.`,
+            button: new ButtonBuilder({
+              customId: "ticket/manage/transfer",
+              label: "Transferir",
               style: ButtonStyle.Secondary,
-              emoji: "1502789907511247010",
+              emoji: "1502789875928400103",
             }),
-            isTheClaimer
+          }),
+          createSection({
+            content: `● **Largar Atendimento**\nNesta opção você pode deixar de ser o responsável pelo atendimento.`,
+            button: isTheClaimer
               ? new ButtonBuilder({
                   customId: "ticket/manage/unclaim",
-                  label: "Desassumir",
+                  label: "Largar",
                   style: ButtonStyle.Secondary,
                   emoji: "1502789878339862660",
                 })
               : new ButtonBuilder({
                   customId: "disabled",
-                  label: "Desassumir",
+                  label: "Largar",
                   style: ButtonStyle.Secondary,
                   emoji: "1502789878339862660",
                   disabled: true,
                 }),
+          }),
+          createRow(
+            new ButtonBuilder({
+              customId: "ticket/manage/transcript",
+              label: "Gerar Transcript",
+              style: ButtonStyle.Secondary,
+              emoji: "1502789907511247010",
+            }),
           ),
         );
 
