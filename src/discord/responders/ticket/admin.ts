@@ -66,66 +66,79 @@ createResponder({
   },
 });
 
-// Responder que recebe a finalização unificada via Modal V2
-createResponder({
-  customId: "ticket/manage/close_submit",
-  types: [ResponderType.Modal, ResponderType.ModalComponent],
-  cache: "cached",
-  async run(interaction: any) {
-    const { channel, user, fields, guild } = interaction;
-    if (!channel?.isTextBased()) return;
+// Função compartilhada para finalização (MELHORADA COM LOGS)
+async function processCloseSubmission(interaction: any) {
+  const { channel, user, fields, guild } = interaction;
+  if (!channel?.isTextBased()) return;
 
-    console.log(">>> [Ticket] FINALIZANDO TUDO (MODAL V2)...");
+  console.log(
+    `[Ticket] >>> INICIANDO FINALIZAÇÃO TOTAL NO CANAL: ${channel.name}`,
+  );
 
-    const ticket = await db.tickets.getByChannel(channel.id);
-    if (!ticket) {
-      await interaction.reply({
-        content: "Erro: Ticket não encontrado no banco.",
-        flags: ["Ephemeral"],
-      });
-      return;
-    }
-
-    // 1. Acknowledge imediato
-    if (typeof interaction.update === "function") {
-      await interaction
-        .update({
-          content: "Finalizando ticket e processando dados...",
-          components: [],
-        })
-        .catch(() => {});
+  // 1. Acknowledge IMEDIATO para o Discord não dar erro
+  try {
+    if (interaction.isFromMessage()) {
+      await interaction.deferUpdate().catch(() => {});
     } else {
       await interaction.deferReply({ flags: ["Ephemeral"] }).catch(() => {});
     }
+    console.log("[Ticket] 1. Discord Acknowledged");
+  } catch (e) {
+    console.error("[Ticket] Erro no Acknowledge:", e);
+  }
 
+  try {
+    // 2. Buscar dados do ticket
+    const ticket = await db.tickets.getByChannel(channel.id);
+    if (!ticket) {
+      console.error("[Ticket] 2. Erro: Ticket não encontrado no banco.");
+      return;
+    }
+    console.log("[Ticket] 2. Dados do ticket recuperados");
+
+    // 3. Extrair dados do modal de forma segura
     const data = modalFieldsToRecord(fields);
+    console.log("[Ticket] 3. Dados brutos extraídos:", JSON.stringify(data));
 
-    // Extrair escolha do transcript (RadioGroup)
     const transcriptChoiceRaw = data.transcript_choice;
     const wantTranscript =
       (Array.isArray(transcriptChoiceRaw)
         ? transcriptChoiceRaw[0]
         : transcriptChoiceRaw) === "yes";
-
-    // Extrair considerações finais
     const considerations =
       (data.considerations as string) || "Atendimento concluído.";
 
-    // 2. Lógica de Fechamento no Banco
+    console.log(
+      `[Ticket] 3. Escolha: ${wantTranscript ? "Sim" : "Não"}, Notas: ${considerations}`,
+    );
+
+    // 4. Marcar como fechado no banco
     ticket.closed = true;
     ticket.closedBy = user.id;
     ticket.closedAt = new Date();
     await (ticket as any).save();
+    console.log("[Ticket] 4. Status atualizado no banco");
 
     let transcriptUrl = "";
     if (wantTranscript) {
-      transcriptUrl = await generateTranscript(channel as any, ticket, user);
+      console.log("[Ticket] 5. Gerando Transcript...");
+      transcriptUrl = await generateTranscript(
+        channel as any,
+        ticket,
+        user,
+      ).catch((err) => {
+        console.error("[Ticket] Erro ao gerar transcript:", err);
+        return "";
+      });
+      console.log("[Ticket] 5. Transcript gerado:", transcriptUrl);
     }
 
-    // 3. Enviar Log para o Canal de Staff (se quis transcript)
-    if (wantTranscript) {
+    // 6. Enviar Log Staff
+    if (wantTranscript && transcriptUrl) {
+      console.log("[Ticket] 6. Tentando enviar Log Staff...");
       const guildData = await db.guilds.get(guild.id);
       const logChannelId = guildData.channels?.tickets;
+
       if (logChannelId) {
         const logChannel = guild.channels.cache.get(logChannelId);
         if (logChannel?.isTextBased()) {
@@ -135,7 +148,7 @@ createResponder({
           const embed = createEmbed({
             title: "Log de Ticket Finalizado",
             color: constants.colors.danger,
-            thumbnail: owner?.displayAvatarURL(),
+            thumbnail: owner?.displayAvatarURL() || undefined,
             fields: [
               {
                 name: "Dono",
@@ -161,18 +174,26 @@ createResponder({
             }),
           );
 
-          await logChannel
+          await (logChannel as any)
             .send({ embeds: [embed], components: [row] })
-            .catch(() => {});
+            .catch((err: any) =>
+              console.error("[Ticket] Erro ao enviar para canal de log:", err),
+            );
+          console.log("[Ticket] 6. Log Staff enviado");
+        } else {
+          console.warn(
+            "[Ticket] 6. Canal de log não encontrado ou não é de texto",
+          );
         }
       }
     }
 
-    // 4. Enviar DM para o usuário
+    // 7. Enviar DM Usuário
     const ownerMember = await guild.members
       .fetch(ticket.ownerId)
       .catch(() => null);
     if (ownerMember) {
+      console.log("[Ticket] 7. Tentando enviar DM para o usuário...");
       const openTime = Math.floor(new Date(ticket.openedAt).getTime() / 1000);
       const closeTime = Math.floor(Date.now() / 1000);
 
@@ -187,7 +208,7 @@ createResponder({
         `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
         Separator.Default,
         `**Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
-        wantTranscript
+        wantTranscript && transcriptUrl
           ? createRow(
               new ButtonBuilder({
                 label: "Acessar Transcript",
@@ -203,28 +224,42 @@ createResponder({
           components: [dmContainer],
           flags: ["IsComponentsV2"],
         })
-        .catch(() => {});
+        .catch(() =>
+          console.log(`[Ticket] 7. DM Bloqueada para ${ownerMember.user.tag}`),
+        );
+      console.log("[Ticket] 7. DM processada");
     }
 
-    // 5. Deletar o canal
-    setTimeout(() => channel.delete().catch(() => {}), 3000);
+    // 8. Deletar Canal
+    console.log("[Ticket] 8. Agendando deleção do canal...");
+    setTimeout(() => {
+      channel
+        .delete()
+        .catch((err) => console.error("[Ticket] Erro ao deletar canal:", err));
+      console.log("[Ticket] >>> CANAL DELETADO. PROCESSO CONCLUÍDO.");
+    }, 3000);
+  } catch (err) {
+    console.error("[Ticket] !!! ERRO CRÍTICO NO PROCESSO DE FECHAMENTO:", err);
+  }
+}
+
+// Responder que recebe as considerações finais
+createResponder({
+  customId: "ticket/manage/close_submit",
+  types: [ResponderType.Modal, ResponderType.ModalComponent],
+  cache: "cached",
+  async run(interaction) {
+    await processCloseSubmission(interaction);
   },
 });
 
-// Backup para o ID de título
+// Backup para o ID de título do modal
 createResponder({
   customId: "Finalizar Atendimento",
   types: [ResponderType.Modal, ResponderType.ModalComponent],
   cache: "cached",
   async run(interaction) {
-    // Redireciona para o responder oficial de submissão
-    const mainResponder = (this as any).handlers
-      ?.get(
-        interaction.isFromMessage()
-          ? ResponderType.ModalComponent
-          : ResponderType.Modal,
-      )
-      ?.get("ticket/manage/close_submit");
-    if (mainResponder) return mainResponder.run(interaction);
+    console.log(">>> [Ticket] Finalização capturada pelo backup de título!");
+    await processCloseSubmission(interaction);
   },
 });
