@@ -49,7 +49,7 @@ function createMainPanel(ticket: any, owner: any) {
             emoji: "1502789931808981012",
           }),
           new ButtonBuilder({
-            customId: "ticket/manage/close_confirm", // Mudado para confirmação
+            customId: "ticket/manage/close_confirm",
             label: "Finalizar Ticket",
             style: ButtonStyle.Secondary,
             emoji: "1502789802918150206",
@@ -72,7 +72,7 @@ function createMainPanel(ticket: any, owner: any) {
     !isClaimed
       ? createRow(
           new ButtonBuilder({
-            customId: "ticket/manage/close_confirm", // Mudado para confirmação
+            customId: "ticket/manage/close_confirm",
             label: "Finalizar Ticket",
             style: ButtonStyle.Secondary,
             emoji: "1502789802918150206",
@@ -288,7 +288,7 @@ createResponder({
           }),
           createRow(
             new ButtonBuilder({
-              customId: "ticket/manage/close",
+              customId: "ticket/manage/close_modal", // Mudado: Agora abre modal
               label: "Confirmar",
               style: ButtonStyle.Secondary,
             }),
@@ -304,6 +304,29 @@ createResponder({
           components: [container],
           flags: ["Ephemeral", "IsComponentsV2"],
         });
+        break;
+      }
+
+      case "close_modal": {
+        const modal = new ModalBuilder()
+          .setCustomId("ticket/manage/close_submit")
+          .setTitle("Finalizar Atendimento");
+
+        const label = new LabelBuilder()
+          .setLabel("Considerações Finais")
+          .setDescription("Descreva o que foi feito ou deixe um agradecimento.")
+          .setTextInputComponent(
+            new TextInputBuilder()
+              .setCustomId("considerations")
+              .setPlaceholder(
+                "ex: Atendimento concluído! Agradecemos o contato.",
+              )
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true),
+          );
+
+        modal.addComponents(label);
+        await interaction.showModal(modal);
         break;
       }
 
@@ -354,125 +377,6 @@ createResponder({
 
         modal.addComponents(label);
         await interaction.showModal(modal).catch((e) => console.error(e));
-        break;
-      }
-
-      case "close": {
-        if (ticket.closed) {
-          await interaction.reply({
-            content: "Este ticket já está fechado!",
-            flags: ["Ephemeral"],
-          });
-          return;
-        }
-
-        // Se veio do painel de confirmação (que é efêmero), precisamos avisar que estamos processando
-        if (
-          interaction.isButton() &&
-          interaction.message.flags.has("Ephemeral")
-        ) {
-          await interaction
-            .update({ content: "Encerrando ticket...", components: [] })
-            .catch(() => {});
-        } else {
-          await interaction.deferReply();
-        }
-
-        const owner = await guild.members
-          .fetch(ticket.ownerId)
-          .catch(() => null);
-        if (owner) {
-          await (channel as any).permissionOverwrites.edit(owner.id, {
-            SendMessages: false,
-            ViewChannel: true,
-          });
-        }
-
-        ticket.closed = true;
-        ticket.closedBy = user.id;
-        ticket.closedAt = new Date();
-        await (ticket as any).save();
-
-        const container = createContainer(
-          constants.colors.danger,
-          createSection({
-            content: `### Ticket Encerrado\nEste atendimento foi finalizado por ${user}. O histórico de mensagens foi preservado para auditoria.`,
-            thumbnail: user.displayAvatarURL() as any,
-          }),
-          Separator.Default,
-          `**Resumo do Encerramento**\n> **Fechado em:** <t:${Math.floor(Date.now() / 1000)}:F>\n> **Status:** \`FECHADO / ARQUIVADO\``,
-          Separator.Default,
-          createRow(
-            new ButtonBuilder({
-              customId: "ticket/manage/delete",
-              label: "Excluir Canal",
-              style: ButtonStyle.Secondary,
-              emoji: "1502789802918150206",
-            }),
-            new ButtonBuilder({
-              customId: "ticket/manage/reopen",
-              label: "Reabrir Ticket",
-              style: ButtonStyle.Secondary,
-              emoji: "1502789944408674304",
-            }),
-          ),
-        );
-
-        // Se for uma atualização (vindo da confirmação efêmera), mandamos a msg de encerramento no canal principal
-        if (
-          interaction.isButton() &&
-          interaction.message.flags.has("Ephemeral")
-        ) {
-          await channel.send({
-            components: [container],
-            flags: ["IsComponentsV2"],
-          });
-        } else {
-          await interaction.editReply({
-            components: [container],
-            flags: ["IsComponentsV2"],
-          });
-        }
-
-        // Notificação Automática por DM ao fechar
-        if (owner) {
-          const transcriptUrl = await generateTranscript(
-            channel as any,
-            ticket,
-            user,
-          );
-          const closeTime = Math.floor(Date.now() / 1000);
-          const openTime = Math.floor(
-            new Date(ticket.openedAt).getTime() / 1000,
-          );
-
-          const dmContainer = createContainer(
-            constants.colors.danger,
-            createSection({
-              content: `### Atendimento Encerrado\nOlá ${owner}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
-              thumbnail: user.displayAvatarURL() as any,
-            }),
-            Separator.Default,
-            `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`,
-            `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
-            Separator.Default,
-            `**Considerações Finais:**\n\`\`\`\nAtendimento concluído! Agradecemos o seu contato e ficamos à disposição para qualquer outra necessidade. Equipe de Suporte.\n\`\`\``,
-            createRow(
-              new ButtonBuilder({
-                label: "Acessar Transcript",
-                style: ButtonStyle.Link,
-                url: transcriptUrl,
-              }),
-            ),
-          );
-
-          await owner
-            .send({
-              components: [dmContainer],
-              flags: ["IsComponentsV2"],
-            })
-            .catch(() => {});
-        }
         break;
       }
 
@@ -602,7 +506,7 @@ createResponder({
   },
 });
 
-async function generateTranscript(
+export async function generateTranscript(
   channel: TextChannel,
   ticket: any,
   closer: any,
