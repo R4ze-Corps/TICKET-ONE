@@ -18,6 +18,7 @@ import {
   TextChannel,
   PermissionFlagsBits,
   RadioGroupBuilder,
+  StringSelectMenuBuilder,
 } from "discord.js";
 import { db } from "#database";
 import { env } from "#env";
@@ -164,41 +165,80 @@ createResponder({
           createRow(
             new ButtonBuilder({
               customId: "ticket/manage/members_modal",
-              label: "Gerenciar Membros",
+              label: "Membros",
               style: ButtonStyle.Secondary,
               emoji: "1502789976327327801",
             }),
             new ButtonBuilder({
-              customId: "ticket/manage/transcript",
-              label: "Gerar Transcript",
-              style: ButtonStyle.Secondary,
-              emoji: "1502789907511247010",
-            }),
-          ),
-          createRow(
-            new ButtonBuilder({
               customId: "ticket/manage/rename_modal",
-              label: "Renomear Ticket",
+              label: "Renomear",
               style: ButtonStyle.Secondary,
               emoji: "1502789881250709675",
             }),
+            new ButtonBuilder({
+              customId: "ticket/manage/transfer",
+              label: "Transferir",
+              style: ButtonStyle.Secondary,
+              emoji: "1502789809142239243",
+            }),
+          ),
+          createRow(
             new ButtonBuilder({
               customId: "ticket/manage/notify",
               label: "Notificar",
               style: ButtonStyle.Secondary,
               emoji: "1502789798983766016",
             }),
-          ),
-          isTheClaimer
-            ? createRow(
-                new ButtonBuilder({
+            new ButtonBuilder({
+              customId: "ticket/manage/transcript",
+              label: "Transcript",
+              style: ButtonStyle.Secondary,
+              emoji: "1502789907511247010",
+            }),
+            isTheClaimer
+              ? new ButtonBuilder({
                   customId: "ticket/manage/unclaim",
-                  label: "Largar Atendimento",
+                  label: "Desassumir",
                   style: ButtonStyle.Secondary,
                   emoji: "1502789878339862660",
+                })
+              : new ButtonBuilder({
+                  customId: "disabled",
+                  label: "Desassumir",
+                  style: ButtonStyle.Secondary,
+                  emoji: "1502789878339862660",
+                  disabled: true,
                 }),
-              )
-            : [],
+          ),
+        );
+
+        await interaction.reply({
+          components: [container],
+          flags: ["Ephemeral", "IsComponentsV2"],
+        });
+        break;
+      }
+
+      case "transfer": {
+        const container = createContainer(
+          constants.colors.primary,
+          createSection({
+            content:
+              "### <:arrow_right:1502789809142239243> Transferir Ticket\nSelecione a nova categoria para este atendimento abaixo.",
+            thumbnail: user.displayAvatarURL() as any,
+          }),
+          createRow(
+            new StringSelectMenuBuilder({
+              customId: "ticket/manage/transfer_select",
+              placeholder: "Escolha uma categoria...",
+              options: [
+                { label: "Suporte", value: "suporte", emoji: "🔨" },
+                { label: "Denúncia", value: "denuncia", emoji: "🛡️" },
+                { label: "Financeiro", value: "financeiro", emoji: "💰" },
+                { label: "Bugs", value: "bugs", emoji: "🐛" },
+              ],
+            }),
+          ),
         );
 
         await interaction.reply({
@@ -516,6 +556,65 @@ createResponder({
           flags: ["Ephemeral"],
         });
       }
+    }
+  },
+});
+
+createResponder({
+  customId: "ticket/manage/transfer_select",
+  types: [ResponderType.StringSelect],
+  cache: "cached",
+  async run(interaction) {
+    const { guild, channel, values, user } = interaction;
+    if (!channel?.isTextBased()) return;
+
+    await interaction.deferReply({ flags: ["Ephemeral"] });
+
+    const ticket = await db.tickets.getByChannel(channel.id);
+    if (!ticket) {
+      await interaction.editReply({ content: "Ticket não encontrado." });
+      return;
+    }
+
+    const newCategory = values[0];
+    const guildData = await db.guilds.get(guild.id);
+    const categories = guildData.channels?.categories;
+
+    let parentId = undefined;
+    if (categories) {
+      parentId = (categories as any)[newCategory];
+    }
+
+    if (!parentId) {
+      await interaction.editReply({
+        content: `A categoria "${newCategory.toUpperCase()}" não está configurada no bot. Use \`/ticket configurar\`.`,
+      });
+      return;
+    }
+
+    try {
+      // 1. Atualizar canal no Discord
+      await (channel as any).setParent(parentId, { lockPermissions: false });
+
+      // 2. Atualizar banco de dados
+      ticket.category = newCategory;
+      await (ticket as any).save();
+
+      // 3. Feedback
+      await interaction.editReply({
+        content: `<:action_check:1502789974276178121> Ticket transferido para a categoria **${newCategory.toUpperCase()}** com sucesso!`,
+      });
+
+      // Log no canal
+      await channel.send({
+        content: `<:action_info:1502789798983766016> Este ticket foi transferido para a categoria **${newCategory.toUpperCase()}** por ${user}.`,
+      });
+    } catch (error) {
+      console.error("[Ticket] Erro ao transferir ticket:", error);
+      await interaction.editReply({
+        content:
+          "Ocorreu um erro ao tentar mover o canal para a nova categoria.",
+      });
     }
   },
 });
