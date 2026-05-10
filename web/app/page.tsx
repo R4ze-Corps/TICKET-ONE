@@ -5,7 +5,7 @@ import type { Transcript } from "@/lib/types"
 const sampleTranscript: Transcript = {
   id: "380GACM",
   guildId: "123456789",
-  guildName: "Code Studio",
+  guildName: "Mts Code",
   channelId: "987654321",
   channelName: "ticket-mts-boss",
   category: "Suporte",
