@@ -80,13 +80,22 @@ createCommand({
       }
 
       const container = createContainer(
-        "Blue",
+        constants.colors.azoxo,
         createSection({
-          content: `## Central de Atendimento\nClique no botão abaixo para abrir um ticket e entrar em contato com a nossa equipe.`,
+          content: `## <:other_ticket:1502789959378145300> Central de Atendimento\nSeja bem-vindo(a) ao nosso sistema de atendimento. Através do atendimento, você pode falar diretamente com nossa equipe.`,
           thumbnail: emojis.static.other_ticket,
         }),
+        Separator.Default,
         createSection({
-          content: "Horário de atendimento: **09:00 às 18:00**",
+          content: [
+            `<:apps_discord:1502789832106311811> Forneça o motivo e o máximo de informações possível para agilizar seu atendimento.`,
+            `<:apps_discord:1502789832106311811> Não chame membros da equipe no privado.`,
+            `<:apps_discord:1502789832106311811> Iniciar um atendimento sem um motivo coerente poderá resultar em punições.`,
+          ].join("\n"),
+        }),
+        Separator.Default,
+        createSection({
+          content: "Clique no botão abaixo para iniciar o seu atendimento.",
           button: new ButtonBuilder({
             customId: "ticket/form/open",
             label: "Abrir Ticket",
