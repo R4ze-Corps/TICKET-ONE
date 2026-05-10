@@ -95,8 +95,8 @@ async function processTicketSubmission(interaction: any) {
         thumbnail: user.displayAvatarURL() as any,
       }),
       Separator.Default,
-      `**Categoria do atendimento:**\n\`\`\`\n${category.toUpperCase()}\n\`\`\``,
-      `**Motivo do contato:**\n\`\`\`\n${description}\n\`\`\``,
+      `<:folder_open:1502789875928400103> **Categoria do atendimento:**\n\`\`\`\n${category.toUpperCase()}\n\`\`\``,
+      `<:action_info:1502789798983766016> **Motivo do contato:**\n\`\`\`\n${description}\n\`\`\``,
       Separator.Default,
       createRow(
         new ButtonBuilder({
