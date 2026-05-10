@@ -6,7 +6,6 @@ import {
   modalFieldsToRecord,
   Separator,
   createRow,
-  createEmbed,
 } from "@magicyan/discord";
 import { ButtonBuilder, ButtonStyle } from "discord.js";
 import { db } from "#database";
@@ -138,48 +137,54 @@ async function processCloseSubmission(interaction: any) {
         const owner = await guild.members
           .fetch(ticket.ownerId)
           .catch(() => null);
-        const embed = createEmbed({
-          title: "📄 Log de Encerramento",
-          description: `O ticket \`${ticket.ticketId}\` foi finalizado por ${user}.`,
-          color: constants.colors.danger,
-          thumbnail: owner?.displayAvatarURL() || undefined,
-          fields: [
-            {
-              name: "Dono",
-              value: `${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
-              inline: true,
-            },
-            {
-              name: "Finalizado por",
-              value: `${user} (\`${user.id}\`)`,
-              inline: true,
-            },
-            { name: "Categoria", value: ticket.category, inline: true },
-            {
-              name: "Escolha do Staff",
-              value: wantTranscriptUser ? "✅ Salvar" : "❌ Não Salvar",
-              inline: true,
-            },
-            { name: "Considerações", value: considerations },
-          ],
-          timestamp: new Date(),
-        });
 
-        const components = [];
-        if (transcriptUrl) {
-          components.push(
-            createRow(
-              new ButtonBuilder({
-                label: "Ver Transcript Online",
-                style: ButtonStyle.Link,
-                url: transcriptUrl,
-              }),
-            ),
-          );
-        }
+        const claimer = ticket.claimedBy
+          ? await guild.members.fetch(ticket.claimedBy).catch(() => null)
+          : null;
+        const openedAtTimestamp = Math.floor(ticket.openedAt.getTime() / 1000);
+        const closedAtTimestamp = Math.floor(new Date().getTime() / 1000);
+
+        const logContainer = createContainer(
+          "#00FFD4",
+          createSection({
+            content: `## <:folder:1502789880214720533> Atendimento ${ticket.ticketId}\nVenho registrar a log de encerramento do atendimento \`${ticket.ticketId}\`, encerrado por ${user}. Abaixo você pode ver todas as informações seguido do transcript.`,
+            thumbnail: owner?.displayAvatarURL() as any,
+          }),
+          Separator.Default,
+          `**Identificação**\n` +
+            [
+              `<:user:1502789979229913268> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
+              `<:shield_check:1502789932727668788> **Encerrado por:** ${user} (\`${user.id}\`)`,
+              `<:user_check:1502789974276178121> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
+            ].join("\n"),
+          Separator.Default,
+          `**Cronologia**\n` +
+            [
+              `<:clock:1502789859960422502> **Aberto em:** <t:${openedAtTimestamp}:f> (<t:${openedAtTimestamp}:R>)`,
+              `<:clock:1502789859960422502> **Encerrado em:** <t:${closedAtTimestamp}:f> (<t:${closedAtTimestamp}:R>)`,
+            ].join("\n"),
+          Separator.Default,
+          `**Detalhes do Ticket**\n` +
+            [
+              `<:folder_open:1502789875928400103> **Categoria:** \`${ticket.category}\``,
+              `<:action_info:1502789798983766016> **Motivo:** \`${ticket.description || "Não informado."}\``,
+            ].join("\n"),
+          Separator.Default,
+          `**<:action_check:1502789797821939752> Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
+          transcriptUrl
+            ? createRow(
+                new ButtonBuilder({
+                  label: "Acessar Transcript",
+                  style: ButtonStyle.Link,
+                  emoji: "1502789882916110407",
+                  url: transcriptUrl,
+                }),
+              )
+            : [],
+        );
 
         await (logChannel as any)
-          .send({ embeds: [embed], components })
+          .send({ components: [logContainer], flags: ["IsComponentsV2"] })
           .catch(() => {});
         console.log("[Ticket] 4. Log enviado para Staff");
       }
@@ -203,12 +208,13 @@ async function processCloseSubmission(interaction: any) {
         `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`,
         `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
         Separator.Default,
-        `**Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
+        `<:action_check:1502789797821939752> **Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
         wantTranscriptUser && transcriptUrl
           ? createRow(
               new ButtonBuilder({
                 label: "Acessar Transcript",
                 style: ButtonStyle.Link,
+                emoji: "1502789882916110407",
                 url: transcriptUrl,
               }),
             )

@@ -1,11 +1,13 @@
 import { MongoClient, Db } from "mongodb";
 
-const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
-
-if (!uri) {
-  throw new Error(
-    "Please add your MongoDB URI (MONGODB_URI or MONGO_URI) to environment variables",
-  );
+function getUri(): string {
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (!uri) {
+    throw new Error(
+      "Please add your MongoDB URI (MONGODB_URI or MONGO_URI) to environment variables",
+    );
+  }
+  return uri;
 }
 
 const options = {};
@@ -18,21 +20,30 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-if (process.env.NODE_ENV === "development") {
-  if (!global._mongoClientPromise) {
+function getClientPromise(): Promise<MongoClient> {
+  if (clientPromise) return clientPromise;
+
+  const uri = getUri();
+
+  if (process.env.NODE_ENV === "development") {
+    if (!global._mongoClientPromise) {
+      client = new MongoClient(uri, options);
+      global._mongoClientPromise = client.connect();
+    }
+    clientPromise = global._mongoClientPromise;
+  } else {
     client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
+    clientPromise = client.connect();
   }
-  clientPromise = global._mongoClientPromise;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+
+  return clientPromise;
 }
 
-export default clientPromise;
+export default function getClient() {
+  return getClientPromise();
+}
 
 export async function getDatabase(): Promise<Db> {
-  const client = await clientPromise;
-  // Sincronizado com o bot: usa DATABASE_NAME ou 'database'
-  return client.db(process.env.DATABASE_NAME || "database");
+  const c = await getClientPromise();
+  return c.db(process.env.DATABASE_NAME || "database");
 }

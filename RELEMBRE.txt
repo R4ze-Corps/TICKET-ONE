@@ -9,8 +9,7 @@
    - Arquivo: src/discord/responders/ticket/manage.ts (case "admin")
 
 3. MUDAR O PAINEL DO TICKET:
-   - Refinar ou alterar o design do painel de boas-vindas que aparece dentro do canal do ticket quando ele é criado.
-   - Arquivo: src/discord/responders/ticket/submit.ts
+   - Refinar ou alterar o design da Central de Atendimento
 
 -----------------------------------
 Data da última atualização: 10/05/2026

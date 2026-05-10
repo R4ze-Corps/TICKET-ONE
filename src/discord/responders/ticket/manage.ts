@@ -402,36 +402,53 @@ createResponder({
               .fetch(ticket.ownerId)
               .catch(() => null);
 
-            const embed = createEmbed({
-              title: "Log de Ticket Deletado",
-              color: constants.colors.danger,
-              thumbnail: owner?.displayAvatarURL(),
-              fields: [
-                {
-                  name: "Dono",
-                  value: `${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
-                  inline: true,
-                },
-                {
-                  name: "Deletado por",
-                  value: `${user} (\`${user.id}\`)`,
-                  inline: true,
-                },
-                { name: "Categoria", value: ticket.category, inline: true },
-              ],
-              footer: { text: `ID do Canal: ${channel.id}` },
-              timestamp: new Date(),
-            });
+            const claimer = ticket.claimedBy
+              ? await guild.members.fetch(ticket.claimedBy).catch(() => null)
+              : null;
+            const openedAtTimestamp = Math.floor(
+              ticket.openedAt.getTime() / 1000,
+            );
+            const closedAtTimestamp = Math.floor(new Date().getTime() / 1000);
 
-            const row = createRow(
-              new ButtonBuilder({
-                label: "Ver Transcript Online",
-                style: ButtonStyle.Link,
-                url: transcriptUrl,
+            const logContainer = createContainer(
+              "#00FFD4",
+              createSection({
+                content: `## <:folder:1502789880214720533> Atendimento Deletado: ${ticket.ticketId}\nO atendimento \`${ticket.ticketId}\` foi deletado por ${user}. O histórico de mensagens foi salvo e pode ser acessado abaixo.`,
+                thumbnail: owner?.displayAvatarURL() as any,
               }),
+              Separator.Default,
+              `**Identificação**\n` +
+                [
+                  `<:user:1502789979229913268> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
+                  `<:action_remove:1502789800967536741> **Deletado por:** ${user} (\`${user.id}\`)`,
+                  `<:user_check:1502789974276178121> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
+                ].join("\n"),
+              Separator.Default,
+              `**Cronologia**\n` +
+                [
+                  `<:clock:1502789859960422502> **Aberto em:** <t:${openedAtTimestamp}:f> (<t:${openedAtTimestamp}:R>)`,
+                  `<:clock:1502789859960422502> **Encerrado em:** <t:${closedAtTimestamp}:f> (<t:${closedAtTimestamp}:R>)`,
+                ].join("\n"),
+              Separator.Default,
+              `**Detalhes do Ticket**\n` +
+                [
+                  `<:folder_open:1502789875928400103> **Categoria:** \`${ticket.category}\``,
+                  `<:action_info:1502789798983766016> **Motivo:** \`${ticket.description || "Não informado."}\``,
+                ].join("\n"),
+              createRow(
+                new ButtonBuilder({
+                  label: "Acessar Transcript",
+                  style: ButtonStyle.Link,
+                  emoji: "1502789882916110407",
+                  url: transcriptUrl,
+                }),
+              ),
             );
 
-            await logChannel.send({ embeds: [embed], components: [row] });
+            await logChannel.send({
+              components: [logContainer],
+              flags: ["IsComponentsV2"],
+            });
           }
         }
 
