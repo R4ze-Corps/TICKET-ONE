@@ -235,7 +235,9 @@ async function processCloseSubmission(interaction: any) {
     setTimeout(() => {
       channel
         .delete()
-        .catch((err) => console.error("[Ticket] Erro ao deletar canal:", err));
+        .catch((err: any) =>
+          console.error("[Ticket] Erro ao deletar canal:", err),
+        );
       console.log("[Ticket] >>> CANAL DELETADO. PROCESSO CONCLUÍDO.");
     }, 3000);
   } catch (err) {
