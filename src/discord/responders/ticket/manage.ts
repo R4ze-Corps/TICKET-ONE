@@ -31,7 +31,7 @@ function createMainPanel(ticket: any, owner: any) {
     constants.colors.azoxo,
     createSection({
       content:
-        `## Ticket ${ticket.ticketId}\n${owner || "Usuário"} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.` +
+        `## <:other_ticket:1502789959378145300> Ticket ${ticket.ticketId}\n${owner || "Usuário"} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.` +
         (isClaimed
           ? `\n\n> <:user_check:1502789974276178121> **Assumido por:** <@${ticket.claimedBy}>`
           : ""),

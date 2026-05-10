@@ -91,7 +91,7 @@ async function processTicketSubmission(interaction: any) {
     const container = createContainer(
       constants.colors.azoxo,
       createSection({
-        content: `## Ticket ${ticketId}\n${user} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas. Envie abaixo sua solicitação e aguarde.`,
+        content: `## <:other_ticket:1502789959378145300> Ticket ${ticketId}\n${user} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas. Envie abaixo sua solicitação e aguarde.`,
         thumbnail: user.displayAvatarURL() as any,
       }),
       Separator.Default,
