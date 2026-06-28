@@ -34,9 +34,9 @@ function createTicketButtons(closeStyle = ButtonStyle.Secondary) {
 function createTicketContainer(guild, user, member, category, description) {
     const clientName = getClientName(user, member);
     return createContainer(constants.colors.white, createSection({
-        content: `# <:Folderopen:1520849868820578385> Ticket ${clientName}\n${user} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.`,
+        content: `# \u{1F4C2} Ticket ${clientName}\n${user} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.`,
         thumbnail: getGuildImage(guild),
-    }), Separator.Default, `<:foldersearch:1520843134521577615> **Categoria do atendimento:**\n\`\`\`\n${category.toUpperCase()}\n\`\`\``, `<:bagdinfo:1520843355108544683> **Motivo do contato:**\n\`\`\`\n${description}\n\`\`\``, Separator.Default, createTicketButtons(category === "bot" ? ButtonStyle.Danger : ButtonStyle.Secondary));
+    }), Separator.Default, `\u{1F5C2}\u{FE0F} **Categoria do atendimento:**\n\`\`\`\n${category.toUpperCase()}\n\`\`\``, `\u{2139}\u{FE0F} **Motivo do contato:**\n\`\`\`\n${description}\n\`\`\``, Separator.Default, createTicketButtons(category === "bot" ? ButtonStyle.Danger : ButtonStyle.Secondary));
 }
 async function processTicketSubmission(interaction, selectedCategory) {
     console.log(">>> [Ticket] PROCESSANDO CRIAÇÃO DO TICKET...");
@@ -62,7 +62,7 @@ async function processTicketSubmission(interaction, selectedCategory) {
         }
         console.log(`[Ticket] Roteando assunto "${category}" para categoria ID: ${parentId || "Padrão"}`);
         // Emojis customizados para o tópico
-        const eTicket = "<:Folderopen:1520849868820578385>";
+        const eTicket = "\u{1F4C2}";
         const eUser = "<:Fileup:1520841650652450877>";
         const eCalendar = "<:calendar:1502789854486986752>";
         const eFolder = "<:fileclock:1520839663068119061>";
@@ -198,7 +198,7 @@ createResponder({
             .map((key) => ({
             label: categoryMeta[key]?.label || formatCategoryLabel(key),
             value: key,
-            emoji: categoryMeta[key]?.emoji || "1520849868820578385",
+            emoji: categoryMeta[key]?.emoji || "\u{1F4C2}",
         }));
         if (options.length === 0) {
             await interaction.reply({

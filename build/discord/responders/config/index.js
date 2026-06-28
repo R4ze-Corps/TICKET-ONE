@@ -23,7 +23,7 @@ const DEFAULT_PANEL_DESCRIPTION = [
     "Equipe Villão conta com sua colaboração para um atendimento eficiente.",
     "",
 ].join("\n");
-const PANEL_TITLE_EMOJI = "<:File2:1520832648728023041>";
+const PANEL_TITLE_EMOJI = "\u{1F4C1}";
 const DEFAULT_PANEL_TITLE = `${PANEL_TITLE_EMOJI} ATENDIMENTO VILLÃO`;
 const LEGACY_DEFAULT_PANEL_TITLES = new Set([
     "Central de Atendimento",
@@ -57,7 +57,7 @@ function getPanelTitle(title) {
     if (!title || LEGACY_DEFAULT_PANEL_TITLES.has(title)) {
         return DEFAULT_PANEL_TITLE;
     }
-    return title.replace(/^(?:📁|ðŸ“)\s*/, `${PANEL_TITLE_EMOJI} `);
+    return title.replace(/^(?::File2:|<:File2:\d+>|📁|ðŸ“)\s*/, `${PANEL_TITLE_EMOJI} `);
 }
 function getPanelDescription(description) {
     if (!description || LEGACY_DEFAULT_PANEL_DESCRIPTIONS.has(description)) {
@@ -74,13 +74,17 @@ function getPanelFooter(footer) {
 function formatTicketCategoryChannel(channelId) {
     return channelId ? `<#${channelId}>` : "Nenhuma categoria configurada.";
 }
+function formatTicketLogChannel(channelId) {
+    return channelId ? `<#${channelId}>` : "Nenhum canal configurado.";
+}
 function createPanelConfigContainer(guildData) {
     const panel = guildData.panel || {};
     const categories = guildData.channels?.categories || {};
+    const logChannelId = guildData.channels?.tickets;
     const staffRoleLine = panel.staffRoleId
         ? `<@&${panel.staffRoleId}>`
         : "Nenhum cargo configurado.";
-    return createContainer(constants.colors.white, "## Configuração do Painel Ticket", Separator.Default, `**Cargo da Staff:** ${staffRoleLine}`, `**Categoria Peds:** ${formatTicketCategoryChannel(categories.peds)}`, `**Categoria Denuncias:** ${formatTicketCategoryChannel(categories.denuncias)}`, Separator.Default, createRow(new ButtonBuilder({
+    return createContainer(constants.colors.white, "## Configuração do Painel Ticket", Separator.Default, `**Cargo da Staff:** ${staffRoleLine}`, `**Canal de Logs:** ${formatTicketLogChannel(logChannelId)}`, `**Categoria Peds:** ${formatTicketCategoryChannel(categories.peds)}`, `**Categoria Denuncias:** ${formatTicketCategoryChannel(categories.denuncias)}`, Separator.Default, createRow(new ButtonBuilder({
         customId: "config/painel/text",
         label: "Editar Painel",
         style: ButtonStyle.Primary,
@@ -95,6 +99,11 @@ function createPanelConfigContainer(guildData) {
         label: "Categorias Ticket",
         style: ButtonStyle.Secondary,
         emoji: "1520843134521577615",
+    })), createRow(new ButtonBuilder({
+        customId: "config/painel/log_channel",
+        label: "Canal Logs",
+        style: ButtonStyle.Secondary,
+        emoji: "1502789882916110407",
     })));
 }
 function normalizeCategoryType(value) {
@@ -721,6 +730,41 @@ createResponder({
             .setPlaceholder("Selecione a categoria de denuncias...")
             .setChannelTypes(ChannelType.GuildCategory)));
         await interaction.showModal(modal).catch(() => { });
+    },
+});
+createResponder({
+    customId: "config/painel/log_channel",
+    types: [ResponderType.Button],
+    cache: "cached",
+    async run(interaction) {
+        await interaction.reply({
+            content: "Selecione o canal onde os logs dos tickets serao enviados.",
+            components: [
+                createRow(new ChannelSelectMenuBuilder()
+                    .setCustomId("config/painel/log_channel/select")
+                    .setPlaceholder("Escolha o canal de logs...")
+                    .setChannelTypes(ChannelType.GuildText)),
+            ],
+            flags: ["Ephemeral"],
+        });
+    },
+});
+createResponder({
+    customId: "config/painel/log_channel/select",
+    types: [ResponderType.ChannelSelect],
+    cache: "cached",
+    async run(interaction) {
+        const guildData = await db.guilds.get(interaction.guildId);
+        const channelId = interaction.values[0];
+        guildData.channels = {
+            ...guildData.channels,
+            tickets: channelId,
+        };
+        await guildData.save();
+        await interaction.update({
+            content: `<:check:1520842193257103532> Canal de logs dos tickets configurado para ${formatTicketLogChannel(channelId)}.`,
+            components: [],
+        });
     },
 });
 createResponder({

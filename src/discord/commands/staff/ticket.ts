@@ -15,7 +15,7 @@ const TEXT_DISPLAY_LIMIT = 4000;
 const HIDDEN_CATEGORIES = new Set(["compras", "exclusivo", "pronta_entrega"]);
 const RESET_TICKET_CATEGORY_VALUE = "__reset_ticket_category__";
 const DEFAULT_PANEL_FOOTER = "Villao 2026 \u00A9 Todos os direitos reservados";
-const PANEL_TITLE_EMOJI = "<:File2:1520832648728023041>";
+const PANEL_TITLE_EMOJI = "\u{1F4C1}";
 const DEFAULT_PANEL_TITLE = `${PANEL_TITLE_EMOJI} ATENDIMENTO VILLÃO`;
 const DEFAULT_PANEL_DESCRIPTION =
   [
@@ -47,7 +47,10 @@ function getPanelTitle(title?: string) {
   if (!title || LEGACY_DEFAULT_PANEL_TITLES.has(title)) {
     return DEFAULT_PANEL_TITLE;
   }
-  return title.replace(/^(?:📁|ðŸ“)\s*/, `${PANEL_TITLE_EMOJI} `);
+  return title.replace(
+    /^(?::File2:|<:File2:\d+>|📁|ðŸ“)\s*/,
+    `${PANEL_TITLE_EMOJI} `,
+  );
 }
 
 function getPanelDescription(description?: string) {
@@ -166,7 +169,7 @@ createCommand({
             label: meta?.label || formatCategoryLabel(category),
             description: meta?.description || "Iniciar atendimento nesta categoria.",
             value: category,
-            emoji: meta?.emoji || "1520849868820578385",
+            emoji: meta?.emoji || "\u{1F4C2}",
           };
         })
         .slice(0, 24);

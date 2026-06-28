@@ -55,7 +55,7 @@ async function processRename(interaction) {
         });
         await interaction
             .editReply({
-            content: `<:check:1520842193257103532> Canal renomeado para: \`${formattedName}\``,
+            content: `\u{2705} Canal renomeado para: \`${formattedName}\``,
         })
             .catch(() => { });
     }
@@ -131,8 +131,8 @@ async function processCloseSubmission(interaction) {
         await channel
             .send({
             content: wantTranscriptUser
-                ? `<:bagdinfo:1520843355108544683> O atendimento foi finalizado por ${user}. Gerando transcript e deletando o canal em instantes...`
-                : `<:bagdinfo:1520843355108544683> O atendimento foi finalizado por ${user}. Deletando o canal em instantes...`,
+                ? `\u{2139}\u{FE0F} O atendimento foi finalizado por ${user}. Gerando transcript e deletando o canal em instantes...`
+                : `\u{2139}\u{FE0F} O atendimento foi finalizado por ${user}. Deletando o canal em instantes...`,
         })
             .catch(() => { });
         // 2. Atualizar Banco
@@ -177,16 +177,16 @@ Venho registrar a log de encerramento do atendimento \`${ticket.ticketId}\`, enc
                     [
                         `<:Fileup:1520841650652450877> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
                         `<:shield_check:1502789932727668788> **Encerrado por:** ${user} (\`${user.id}\`)`,
-                        `<:check:1520842193257103532> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
+                        `\u{2705} **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
                     ].join("\n"), Separator.Default, `**Cronologia**\n` +
                     [
                         `<:clock:1502789859960422502> **Aberto em:** <t:${openedAtTimestamp}:f> (<t:${openedAtTimestamp}:R>)`,
                         `<:clock:1502789859960422502> **Encerrado em:** <t:${closedAtTimestamp}:f> (<t:${closedAtTimestamp}:R>)`,
                     ].join("\n"), Separator.Default, `**Detalhes do Ticket**\n` +
                     [
-                        `<:foldersearch:1520843134521577615> **Categoria:** \`${ticket.category}\``,
-                        `<:bagdinfo:1520843355108544683> **Motivo:** \`${ticket.description || "Não informado."}\``,
-                    ].join("\n"), Separator.Default, `**<:check:1520842193257103532> Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, transcript ? `**Codigo do transcript:** \`${transcript.id}\`` : [], transcriptUrl
+                        `\u{1F5C2}\u{FE0F} **Categoria:** \`${ticket.category}\``,
+                        `\u{2139}\u{FE0F} **Motivo:** \`${ticket.description || "Não informado."}\``,
+                    ].join("\n"), Separator.Default, `**\u{2705} Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, transcript ? `**Codigo do transcript:** \`${transcript.id}\`` : [], transcriptUrl
                     ? createRow(new ButtonBuilder({
                         label: "Acessar Transcript",
                         style: ButtonStyle.Link,
@@ -210,7 +210,7 @@ Venho registrar a log de encerramento do atendimento \`${ticket.ticketId}\`, enc
             const dmContainer = createContainer(constants.colors.danger, createSection({
                 content: `### Atendimento Encerrado\nOlá ${ownerMember}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
                 thumbnail: getGuildImage(guild),
-            }), Separator.Default, `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`, `<:calendar:1502789854486986752> **Encerrado em:** <t:${closeTime}:f>`, Separator.Default, `<:check:1520842193257103532> **Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, wantTranscriptUser && transcript
+            }), Separator.Default, `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`, `<:calendar:1502789854486986752> **Encerrado em:** <t:${closeTime}:f>`, Separator.Default, `\u{2705} **Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, wantTranscriptUser && transcript
                 ? `**Codigo do transcript:** \`${transcript.id}\``
                 : [], wantTranscriptUser && transcriptUrl
                 ? createRow(new ButtonBuilder({

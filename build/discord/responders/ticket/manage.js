@@ -152,7 +152,7 @@ function getConfiguredTicketCategoryOptions(configured) {
         .map((key) => ({
         label: categoryMeta[key]?.label || formatCategoryLabel(key),
         value: key,
-        emoji: categoryMeta[key]?.emoji || "1520849868820578385",
+        emoji: categoryMeta[key]?.emoji || "\u{1F4C2}",
     }));
 }
 function getTicketStatus(ticket) {
@@ -231,7 +231,7 @@ function createMainPanel(ticket, owner, guild) {
     const clientName = getClientName(owner);
     const status = getTicketStatus(ticket);
     const assignedLine = isClaimed
-        ? `\n\n> <:check:1520842193257103532> **Assumido por:** <@${ticket.claimedBy}>`
+        ? `\n\n> \u{2705} **Assumido por:** <@${ticket.claimedBy}>`
         : "";
     const statusBlocks = status
         ? [
@@ -240,10 +240,10 @@ function createMainPanel(ticket, owner, guild) {
         ]
         : [];
     return createContainer(constants.colors.white, createSection({
-        content: `# <:Folderopen:1520849868820578385> Ticket ${clientName}\n${ownerDisplay} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.` +
+        content: `# \u{1F4C2} Ticket ${clientName}\n${ownerDisplay} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.` +
             assignedLine,
         thumbnail: getGuildImage(guild),
-    }), ...statusBlocks, Separator.Default, `<:foldersearch:1520843134521577615> **Categoria do atendimento:**\n\`\`\`\n${ticket.category.toUpperCase()}\n\`\`\``, `<:bagdinfo:1520843355108544683> **Motivo do contato:**\n\`\`\`\n${ticket.description}\n\`\`\``, Separator.Default, createRow(...(isClaimed
+    }), ...statusBlocks, Separator.Default, `\u{1F5C2}\u{FE0F} **Categoria do atendimento:**\n\`\`\`\n${ticket.category.toUpperCase()}\n\`\`\``, `\u{2139}\u{FE0F} **Motivo do contato:**\n\`\`\`\n${ticket.description}\n\`\`\``, Separator.Default, createRow(...(isClaimed
         ? []
         : [
             new ButtonBuilder({
@@ -463,7 +463,7 @@ createResponder({
                     }
                 }
                 await interaction.reply({
-                    content: `<:check:1520842193257103532> Você largou o atendimento deste ticket.`,
+                    content: `\u{2705} Você largou o atendimento deste ticket.`,
                     flags: ["Ephemeral"],
                 });
                 break;
@@ -493,7 +493,7 @@ createResponder({
                 const success = await owner.send({ embeds: [embed] }).catch(() => null);
                 if (success) {
                     await interaction.editReply({
-                        content: `<:check:1520842193257103532> O dono do ticket foi notificado com sucesso via DM!`,
+                        content: `\u{2705} O dono do ticket foi notificado com sucesso via DM!`,
                     });
                 }
                 else {
@@ -616,15 +616,15 @@ createResponder({
                             [
                                 `<:Fileup:1520841650652450877> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
                                 `<:action_remove:1502789800967536741> **Deletado por:** ${user} (\`${user.id}\`)`,
-                                `<:check:1520842193257103532> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
+                                `\u{2705} **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
                             ].join("\n"), Separator.Default, `**Cronologia**\n` +
                             [
                                 `<:clock:1502789859960422502> **Aberto em:** <t:${openedAtTimestamp}:f> (<t:${openedAtTimestamp}:R>)`,
                                 `<:clock:1502789859960422502> **Encerrado em:** <t:${closedAtTimestamp}:f> (<t:${closedAtTimestamp}:R>)`,
                             ].join("\n"), Separator.Default, `**Detalhes do Ticket**\n` +
                             [
-                                `<:foldersearch:1520843134521577615> **Categoria:** \`${ticket.category}\``,
-                                `<:bagdinfo:1520843355108544683> **Motivo:** \`${ticket.description || "Não informado."}\``,
+                                `\u{1F5C2}\u{FE0F} **Categoria:** \`${ticket.category}\``,
+                                `\u{2139}\u{FE0F} **Motivo:** \`${ticket.description || "Não informado."}\``,
                             ].join("\n"), createRow(new ButtonBuilder({
                             label: "Acessar Transcript",
                             style: ButtonStyle.Link,
@@ -722,7 +722,7 @@ createResponder({
             await ticket.save();
             // 3. Feedback
             await interaction.editReply({
-                content: `<:check:1520842193257103532> Ticket transferido para a categoria **${newCategory.toUpperCase()}** com sucesso!`,
+                content: `\u{2705} Ticket transferido para a categoria **${newCategory.toUpperCase()}** com sucesso!`,
             });
         }
         catch (error) {
@@ -767,7 +767,7 @@ createResponder({
         await updateMainTicketMessage(channel, ticket, guild);
         await interaction.editReply({
             components: [
-                createContainer(constants.colors.white, `<:check:1520842193257103532> Status do player atualizado para **${selectedStatus.label}**.`),
+                createContainer(constants.colors.white, `\u{2705} Status do player atualizado para **${selectedStatus.label}**.`),
             ],
         });
     },
