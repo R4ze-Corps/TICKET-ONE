@@ -9,8 +9,8 @@ createCommand({
         const container = createContainer(constants.colors.white, "# Sistema de Registro | VILLA PEDS\nPara fazer sua libera\u00e7\u00e3o, precisamos de algumas informa\u00e7\u00f5es suas.\nPor favor, clique no bot\u00e3o abaixo para abrir o formul\u00e1rio e preencher seus dados.", Separator.Default, createRow(new ButtonBuilder({
             customId: "registro/start",
             label: "Registrar",
-            style: ButtonStyle.Primary,
-            emoji: "\u{1F4DD}",
+            style: ButtonStyle.Secondary,
+            emoji: "1520865652066226217",
         })));
         await interaction.reply({
             components: [container],

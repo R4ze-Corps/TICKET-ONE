@@ -23,8 +23,8 @@ createCommand({
         new ButtonBuilder({
           customId: "registro/start",
           label: "Registrar",
-          style: ButtonStyle.Primary,
-          emoji: "\u{1F4DD}",
+          style: ButtonStyle.Secondary,
+          emoji: "1520865652066226217",
         }),
       ),
     );
