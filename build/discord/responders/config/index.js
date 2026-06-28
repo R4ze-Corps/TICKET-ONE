@@ -71,11 +71,16 @@ function getPanelFooter(footer) {
     }
     return footer;
 }
-function createPanelConfigContainer(panel) {
+function formatTicketCategoryChannel(channelId) {
+    return channelId ? `<#${channelId}>` : "Nenhuma categoria configurada.";
+}
+function createPanelConfigContainer(guildData) {
+    const panel = guildData.panel || {};
+    const categories = guildData.channels?.categories || {};
     const staffRoleLine = panel.staffRoleId
         ? `<@&${panel.staffRoleId}>`
         : "Nenhum cargo configurado.";
-    return createContainer(constants.colors.white, "## Configuração do Painel Ticket", Separator.Default, `**Cargo da Staff:** ${staffRoleLine}`, Separator.Default, createRow(new ButtonBuilder({
+    return createContainer(constants.colors.white, "## Configuração do Painel Ticket", Separator.Default, `**Cargo da Staff:** ${staffRoleLine}`, `**Categoria Peds:** ${formatTicketCategoryChannel(categories.peds)}`, `**Categoria Denuncias:** ${formatTicketCategoryChannel(categories.denuncias)}`, Separator.Default, createRow(new ButtonBuilder({
         customId: "config/painel/text",
         label: "Editar Painel",
         style: ButtonStyle.Primary,
@@ -85,6 +90,11 @@ function createPanelConfigContainer(panel) {
         label: "Cargo Staff",
         style: ButtonStyle.Secondary,
         emoji: "1502789938532450304",
+    }), new ButtonBuilder({
+        customId: "config/painel/categories",
+        label: "Categorias Ticket",
+        style: ButtonStyle.Secondary,
+        emoji: "1520843134521577615",
     })));
 }
 function normalizeCategoryType(value) {
@@ -624,9 +634,8 @@ createResponder({
     cache: "cached",
     async run(interaction) {
         const guildData = await db.guilds.get(interaction.guildId);
-        const panel = guildData.panel || {};
         await interaction.update({
-            components: [createPanelConfigContainer(panel)],
+            components: [createPanelConfigContainer(guildData)],
         });
     },
 });
@@ -687,6 +696,58 @@ createResponder({
                 })),
             ],
             flags: ["Ephemeral"],
+        });
+    },
+});
+createResponder({
+    customId: "config/painel/categories",
+    types: [ResponderType.Button],
+    cache: "cached",
+    async run(interaction) {
+        const modal = new ModalBuilder()
+            .setCustomId("config/painel/categories_submit")
+            .setTitle("Categorias dos Tickets");
+        modal.addComponents(new LabelBuilder()
+            .setLabel("Peds")
+            .setDescription("Categoria onde os tickets Peds serao abertos")
+            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder()
+            .setCustomId("cat_peds")
+            .setPlaceholder("Selecione a categoria de Peds...")
+            .setChannelTypes(ChannelType.GuildCategory)), new LabelBuilder()
+            .setLabel("Denuncias")
+            .setDescription("Categoria onde os tickets de denuncias serao abertos")
+            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder()
+            .setCustomId("cat_denuncias")
+            .setPlaceholder("Selecione a categoria de denuncias...")
+            .setChannelTypes(ChannelType.GuildCategory)));
+        await interaction.showModal(modal).catch(() => { });
+    },
+});
+createResponder({
+    customId: "config/painel/categories_submit",
+    types: [ResponderType.Modal, ResponderType.ModalComponent],
+    cache: "cached",
+    async run(interaction) {
+        await interaction.deferReply({ flags: ["Ephemeral"] });
+        const data = modalFieldsToRecord(interaction.fields);
+        const getVal = (key) => {
+            const value = data[key];
+            return (Array.isArray(value) ? value[0] : value);
+        };
+        const guildData = await db.guilds.get(interaction.guildId);
+        guildData.channels = {
+            ...guildData.channels,
+            categories: {
+                ...guildData.channels?.categories,
+                peds: getVal("cat_peds") || guildData.channels?.categories?.peds,
+                denuncias: getVal("cat_denuncias") || guildData.channels?.categories?.denuncias,
+            },
+        };
+        await guildData.save();
+        await interaction.editReply({
+            content: `<:check:1520842193257103532> Categorias de ticket configuradas.\n` +
+                `**Peds:** ${formatTicketCategoryChannel(guildData.channels.categories.peds)}\n` +
+                `**Denuncias:** ${formatTicketCategoryChannel(guildData.channels.categories.denuncias)}`,
         });
     },
 });

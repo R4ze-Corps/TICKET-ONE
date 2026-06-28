@@ -194,12 +194,27 @@ const categoryMeta: Record<string, { label: string; emoji: string }> = {
 };
 const HIDDEN_CATEGORIES = new Set(["compras", "exclusivo", "pronta_entrega"]);
 const RESET_TICKET_CATEGORY_VALUE = "__reset_ticket_category__";
+const DEFAULT_TICKET_CATEGORIES = ["peds", "denuncias"];
 
 function formatCategoryLabel(category: string) {
   return category
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function getVisibleTicketCategories(configured: Record<string, any>) {
+  const configuredCategories = Object.keys(configured).filter(
+    (key) => configured[key] && !HIDDEN_CATEGORIES.has(key),
+  );
+
+  return configuredCategories.length > 0
+    ? configuredCategories
+    : DEFAULT_TICKET_CATEGORIES;
+}
+
+function canUseTicketCategory(category: string, configured: Record<string, any>) {
+  return getVisibleTicketCategories(configured).includes(category);
 }
 
 function createTicketDescriptionModal(category: string, titleCategory?: string) {
@@ -238,7 +253,7 @@ createResponder({
     const guildData = await db.guilds.get(interaction.guildId!);
     const configured = guildData.channels?.categories || {};
 
-    if (!configured[category] || HIDDEN_CATEGORIES.has(category)) {
+    if (!canUseTicketCategory(category, configured)) {
       await interaction.reply({
         content: `<:action_warning:1502789801949265990> Essa categoria nao esta configurada no momento.`,
         flags: ["Ephemeral"],
@@ -260,8 +275,7 @@ createResponder({
     const guildData = await db.guilds.get(interaction.guildId!);
     const configured = guildData.channels?.categories || {};
 
-    const options = Object.keys(configured)
-      .filter((key) => configured[key] && !HIDDEN_CATEGORIES.has(key))
+    const options = getVisibleTicketCategories(configured)
       .map((key) => ({
         label: categoryMeta[key]?.label || formatCategoryLabel(key),
         value: key,

@@ -92,11 +92,16 @@ const categoryMeta = {
         emoji: "1502789875928400103",
     },
 };
+const DEFAULT_TICKET_CATEGORIES = ["peds", "denuncias"];
 function formatCategoryLabel(category) {
     return category
         .split("_")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
+}
+function getVisibleTicketCategories(configuredCategories) {
+    const configured = Object.keys(configuredCategories).filter((category) => configuredCategories[category] && !HIDDEN_CATEGORIES.has(category));
+    return configured.length > 0 ? configured : DEFAULT_TICKET_CATEGORIES;
 }
 createCommand({
     name: "ticket",
@@ -128,8 +133,7 @@ createCommand({
             const description = limitText(getPanelDescription(panel.description), TEXT_DISPLAY_LIMIT - title.length - 45);
             const footer = limitText(getPanelFooter(panel.footer), 300);
             const configuredCategories = guildData.channels?.categories || {};
-            const categoryOptions = Object.keys(configuredCategories)
-                .filter((category) => configuredCategories[category] && !HIDDEN_CATEGORIES.has(category))
+            const categoryOptions = getVisibleTicketCategories(configuredCategories)
                 .map((category) => {
                 const meta = categoryMeta[category];
                 return {
