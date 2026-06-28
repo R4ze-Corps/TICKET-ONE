@@ -12,7 +12,10 @@ async function getTranscript(id: string): Promise<Transcript | null> {
   try {
     const db = await getDatabase()
     const collection = db.collection<Transcript>("transcripts")
-    const transcript = await collection.findOne({ id })
+    const transcript = await collection.findOne(
+      { id },
+      { projection: { _id: 0 } },
+    )
     return transcript
   } catch (error) {
     console.error("Error fetching transcript:", error)

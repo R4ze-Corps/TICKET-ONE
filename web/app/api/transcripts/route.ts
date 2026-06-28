@@ -1,104 +1,85 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import type { CreateTranscriptPayload, Transcript } from "@/lib/types"
 
-// POST - Criar novo transcript (chamado pelo bot Discord)
+function isAuthorized(request: NextRequest) {
+  const secret = process.env.BOT_API_SECRET
+  if (!secret) return true
+  return request.headers.get("authorization") === `Bearer ${secret}`
+}
+
+function createTranscriptCode() {
+  return Math.random().toString(36).slice(2, 9).toUpperCase()
+}
+
+async function ensureTtlIndex(collection: any) {
+  await collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Verificar API Key
-    const apiKey = request.headers.get("x-api-key")
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
+    if (!isAuthorized(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const payload: CreateTranscriptPayload = await request.json()
+    const payload = await request.json()
 
-    // Validar campos obrigatorios
-    if (!payload.id || !payload.guildId || !payload.channelId || !payload.openedBy) {
+    if (!payload.serverName || !payload.title || !Array.isArray(payload.messages)) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
     const db = await getDatabase()
-    const collection = db.collection<Transcript>("transcripts")
+    const collection = db.collection("transcripts")
+    await ensureTtlIndex(collection)
 
-    // Preparar documento para inserir
-    const transcript: Transcript = {
-      id: payload.id,
-      guildId: payload.guildId,
-      guildName: payload.guildName,
-      channelId: payload.channelId,
-      channelName: payload.channelName,
-      category: payload.category || "Suporte",
-      createdAt: payload.createdAt,
-      closedAt: payload.closedAt,
-      openedBy: payload.openedBy,
-      closedBy: payload.closedBy,
-      messageCount: payload.messages.length,
-      messages: payload.messages.map((msg, index) => ({
-        id: `${payload.id}-${index}`,
-        messageId: msg.id,
-        authorId: msg.authorId,
-        authorUsername: msg.authorUsername,
-        authorAvatar: msg.authorAvatar,
-        authorBot: msg.authorBot || false,
-        isStaff: msg.isStaff || false,
-        content: msg.content,
-        timestamp: msg.timestamp,
-        attachments: msg.attachments,
-        embeds: msg.embeds,
-      })),
+    let code = createTranscriptCode()
+    while (await collection.findOne({ code })) {
+      code = createTranscriptCode()
     }
 
-    // Usar upsert para permitir atualizar se ja existir
-    await collection.updateOne(
-      { id: payload.id },
-      { $set: transcript },
-      { upsert: true }
-    )
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-    const transcriptUrl = `${request.nextUrl.origin}/transcripts/${payload.id}`
+    await collection.insertOne({
+      code,
+      serverName: payload.serverName,
+      serverIcon: payload.serverIcon,
+      title: payload.title,
+      agent: payload.agent,
+      duration: payload.duration,
+      messages: payload.messages,
+      createdAt: now,
+      expiresAt,
+    })
 
     return NextResponse.json({
-      success: true,
-      id: payload.id,
-      url: transcriptUrl,
+      code,
+      url: `/transcript/${code}`,
     })
   } catch (error) {
     console.error("Error creating transcript:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
 
-// GET - Listar transcripts (opcional, para admin)
 export async function GET(request: NextRequest) {
   try {
-    const apiKey = request.headers.get("x-api-key")
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
+    if (!isAuthorized(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { searchParams } = new URL(request.url)
-    const guildId = searchParams.get("guildId")
-    const limit = parseInt(searchParams.get("limit") || "20")
+    const limit = Number.parseInt(searchParams.get("limit") || "20", 10)
 
     const db = await getDatabase()
-    const collection = db.collection<Transcript>("transcripts")
-
-    const query = guildId ? { guildId } : {}
+    const collection = db.collection("transcripts")
     const transcripts = await collection
-      .find(query, { projection: { messages: 0 } }) // Excluir mensagens da listagem
+      .find({}, { projection: { _id: 0, messages: 0 } })
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray()
@@ -108,7 +89,7 @@ export async function GET(request: NextRequest) {
     console.error("Error listing transcripts:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

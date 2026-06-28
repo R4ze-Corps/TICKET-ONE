@@ -1,4 +1,13 @@
 import { MongoClient, Db } from "mongodb";
+import dns from "node:dns";
+
+let mongoDnsConfigured = false;
+
+function configureMongoDns() {
+  if (mongoDnsConfigured) return;
+  dns.setServers(["1.1.1.1", "8.8.8.8"]);
+  mongoDnsConfigured = true;
+}
 
 function getUri(): string {
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
@@ -24,6 +33,7 @@ function getClientPromise(): Promise<MongoClient> {
   if (clientPromise) return clientPromise;
 
   const uri = getUri();
+  configureMongoDns();
 
   if (process.env.NODE_ENV === "development") {
     if (!global._mongoClientPromise) {

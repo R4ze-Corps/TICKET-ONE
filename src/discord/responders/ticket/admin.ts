@@ -11,6 +11,23 @@ import { ButtonBuilder, ButtonStyle } from "discord.js";
 import { db } from "#database";
 import { generateTranscript } from "./manage.js";
 
+function getGuildImage(guild: any) {
+  return (
+    guild?.iconURL?.({ size: 1024 }) ||
+    guild?.bannerURL?.({ size: 1024 }) ||
+    "https://cdn.discordapp.com/embed/avatars/0.png"
+  );
+}
+
+function getTicketOpenedAt(ticket: any) {
+  const openedAt = ticket.openedAt ? new Date(ticket.openedAt) : new Date();
+  return Number.isNaN(openedAt.getTime()) ? new Date() : openedAt;
+}
+
+function hasTicketClaimer(ticket: any) {
+  return typeof ticket.claimedBy === "string" && ticket.claimedBy.length > 0;
+}
+
 // Função compartilhada para renomear
 async function processRename(interaction: any) {
   const { channel, fields } = interaction;
@@ -86,19 +103,28 @@ async function processCloseSubmission(interaction: any) {
       await interaction.deferReply({ ephemeral: true }).catch(() => {});
     }
     console.log("[Ticket] 1. Discord Acknowledged (Modal Closed)");
-
-    // Mensagem de feedback no canal
-    await channel
-      .send({
-        content: `<:action_info:1502789798983766016> O atendimento foi finalizado por ${user}. Gerando transcript e deletando o canal em instantes...`,
-      })
-      .catch(() => {});
   } catch (e) {
     console.error("[Ticket] Erro no Acknowledge:", e);
   }
   try {
     const ticket = await db.tickets.getByChannel(channel.id);
     if (!ticket) return;
+    if (!hasTicketClaimer(ticket)) {
+      await interaction
+        .editReply({
+          content:
+            "<:action_warning:1502789801949265990> Este ticket precisa ser assumido antes de ser finalizado.",
+          components: [],
+        })
+        .catch(() => {});
+      return;
+    }
+
+    await channel
+      .send({
+        content: `<:action_info:1502789798983766016> O atendimento foi finalizado por ${user}. Gerando transcript e deletando o canal em instantes...`,
+      })
+      .catch(() => {});
 
     const data = modalFieldsToRecord(fields);
     const transcriptChoiceRaw = data.transcript_choice;
@@ -118,14 +144,15 @@ async function processCloseSubmission(interaction: any) {
 
     // 3. Transcript OBRIGATÓRIO (Independente da escolha do Staff)
     console.log("[Ticket] 3. Gerando Transcript (Obrigatório para Staff)...");
-    const transcriptUrl = await generateTranscript(
+    const transcript = await generateTranscript(
       channel as any,
       ticket,
       user,
     ).catch((err) => {
       console.error("[Ticket] Erro ao gerar transcript:", err);
-      return "";
+      return null;
     });
+    const transcriptUrl = transcript?.url;
 
     // 4. LOG PARA STAFF (Sempre envia com o link se gerado)
     const guildData = await db.guilds.get(guild.id);
@@ -141,14 +168,16 @@ async function processCloseSubmission(interaction: any) {
         const claimer = ticket.claimedBy
           ? await guild.members.fetch(ticket.claimedBy).catch(() => null)
           : null;
-        const openedAtTimestamp = Math.floor(ticket.openedAt.getTime() / 1000);
-        const closedAtTimestamp = Math.floor(new Date().getTime() / 1000);
+        const openedAtTimestamp = Math.floor(
+          getTicketOpenedAt(ticket).getTime() / 1000,
+        );
+        const closedAtTimestamp = Math.floor(Date.now() / 1000);
 
         const logContainer = createContainer(
           "#00FFD4",
           createSection({
             content: `## <:folder:1502789880214720533> Atendimento ${ticket.ticketId}\nVenho registrar a log de encerramento do atendimento \`${ticket.ticketId}\`, encerrado por ${user}. Abaixo você pode ver todas as informações seguido do transcript.`,
-            thumbnail: owner?.displayAvatarURL() as any,
+            thumbnail: getGuildImage(guild) as any,
           }),
           Separator.Default,
           `**Identificação**\n` +
@@ -171,6 +200,7 @@ async function processCloseSubmission(interaction: any) {
             ].join("\n"),
           Separator.Default,
           `**<:action_check:1502789797821939752> Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
+          transcript ? `**Codigo do transcript:** \`${transcript.id}\`` : [],
           transcriptUrl
             ? createRow(
                 new ButtonBuilder({
@@ -195,20 +225,23 @@ async function processCloseSubmission(interaction: any) {
       .fetch(ticket.ownerId)
       .catch(() => null);
     if (ownerMember) {
-      const openTime = Math.floor(new Date(ticket.openedAt).getTime() / 1000);
+      const openTime = Math.floor(getTicketOpenedAt(ticket).getTime() / 1000);
       const closeTime = Math.floor(Date.now() / 1000);
 
       const dmContainer = createContainer(
         constants.colors.danger,
         createSection({
           content: `### Atendimento Encerrado\nOlá ${ownerMember}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
-          thumbnail: user.displayAvatarURL() as any,
+          thumbnail: getGuildImage(guild) as any,
         }),
         Separator.Default,
         `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`,
         `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`,
         Separator.Default,
         `<:action_check:1502789797821939752> **Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``,
+        wantTranscriptUser && transcript
+          ? `**Codigo do transcript:** \`${transcript.id}\``
+          : [],
         wantTranscriptUser && transcriptUrl
           ? createRow(
               new ButtonBuilder({

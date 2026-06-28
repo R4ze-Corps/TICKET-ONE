@@ -1,17 +1,93 @@
 import { createCommand } from "#base";
 import {
   createContainer,
-  createSection,
-  Separator,
   createRow,
+  createSection,
 } from "@magicyan/discord";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
-  ButtonBuilder,
-  ButtonStyle,
+  StringSelectMenuBuilder,
 } from "discord.js";
 import { db } from "#database";
+
+const TEXT_DISPLAY_LIMIT = 4000;
+const HIDDEN_CATEGORIES = new Set(["compras", "exclusivo", "pronta_entrega"]);
+const DEFAULT_PANEL_FOOTER = "Villao 2026 \u00A9 Todos os direitos reservados";
+const DEFAULT_PANEL_TITLE = "📁 ATENDIMENTO VILLÃO";
+const DEFAULT_PANEL_DESCRIPTION =
+  [
+    "Seja bem-vindo ao sistema de atendimento Villão. Utilize o menu abaixo para registrar sua solicitação e aguarde o retorno de nossa equipe.",
+    "",
+    "> - Abra um ticket somente quando houver real necessidade.",
+    "> - Evite marcações excessivas à equipe.",
+    "> - Para agilizar seu atendimento, forneça todas as informações relevantes de forma clara e completa.",
+    "",
+    "Equipe Villão conta com sua colaboração para um atendimento eficiente.",
+    "",
+  ].join("\n");
+const LEGACY_DEFAULT_PANEL_TITLES = new Set([
+  "Central de Atendimento",
+]);
+const LEGACY_DEFAULT_PANEL_DESCRIPTIONS = new Set([
+  "Selecione a categoria para ser atendido",
+  "Selecione a categoria para ser atendido!",
+  "Seja bem-vindo(a) ao nosso sistema de atendimento.",
+  "Seja bem-vindo(a) ao nosso sistema de atendimento. Através do atendimento, você pode falar diretamente com nossa equipe.",
+]);
+
+function limitText(value: string, maxLength = TEXT_DISPLAY_LIMIT) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function getPanelTitle(title?: string) {
+  if (!title || LEGACY_DEFAULT_PANEL_TITLES.has(title)) {
+    return DEFAULT_PANEL_TITLE;
+  }
+  return title;
+}
+
+function getPanelDescription(description?: string) {
+  if (!description || LEGACY_DEFAULT_PANEL_DESCRIPTIONS.has(description)) {
+    return DEFAULT_PANEL_DESCRIPTION;
+  }
+  return description;
+}
+
+function getPanelFooter(footer?: string) {
+  return footer || DEFAULT_PANEL_FOOTER;
+}
+
+const categoryMeta: Record<string, { label: string; description: string; emoji: string }> = {
+  suporte: {
+    label: "Suporte",
+    description: "Duvidas, ajuda e atendimento geral.",
+    emoji: "1502789958430232688",
+  },
+  bot: {
+    label: "Bot",
+    description: "Atendimento relacionado a bots.",
+    emoji: "1502789931808981012",
+  },
+  roupas: {
+    label: "Roupas",
+    description: "Pedidos e duvidas sobre roupas.",
+    emoji: "1502789953334280345",
+  },
+  parceria: {
+    label: "Parceria",
+    description: "Propostas e assuntos de parceria.",
+    emoji: "1502789875928400103",
+  },
+};
+
+function formatCategoryLabel(category: string) {
+  return category
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
 
 createCommand({
   name: "ticket",
@@ -23,90 +99,77 @@ createCommand({
       name: "painel",
       description: "Enviar o painel de abertura de tickets",
       type: ApplicationCommandOptionType.Subcommand,
-      options: [
-        {
-          name: "canal",
-          description: "Canal onde o painel será enviado",
-          type: ApplicationCommandOptionType.Channel,
-          required: true,
-        },
-      ],
-    },
-    {
-      name: "configurar",
-      description: "Configurar canais de logs e categorias de roteamento",
-      type: ApplicationCommandOptionType.Subcommand,
-      options: [
-        {
-          name: "logs",
-          description: "Canal onde os logs de tickets serão enviados",
-          type: ApplicationCommandOptionType.Channel,
-          required: true,
-        },
-        {
-          name: "cat_suporte",
-          description: "Categoria para Suporte Geral",
-          type: ApplicationCommandOptionType.Channel,
-          required: true,
-        },
-        {
-          name: "cat_denuncia",
-          description: "Categoria para Denúncias",
-          type: ApplicationCommandOptionType.Channel,
-          required: true,
-        },
-        {
-          name: "cat_financeiro",
-          description: "Categoria para Financeiro",
-          type: ApplicationCommandOptionType.Channel,
-          required: true,
-        },
-        {
-          name: "cat_bugs",
-          description: "Categoria para Bugs",
-          type: ApplicationCommandOptionType.Channel,
-          required: true,
-        },
-      ],
     },
   ],
   async run(interaction) {
-    const { options, guildId } = interaction;
+    const { guild, options, guildId } = interaction;
     const subcommand = options.getSubcommand();
 
     if (subcommand === "painel") {
-      const channel = options.getChannel("canal", true);
-      if (!channel.isTextBased()) {
+      const channel = interaction.channel;
+      if (!channel?.isTextBased()) {
         await interaction.reply({
-          content: "O canal precisa ser de texto!",
+          content: "Use esse comando em um canal de texto para enviar o painel.",
           flags: ["Ephemeral"],
         });
         return;
       }
 
-      const container = createContainer(
-        constants.colors.azoxo,
-        createSection({
-          content: `## <:other_ticket:1502789959378145300> Central de Atendimento\nSeja bem-vindo(a) ao nosso sistema de atendimento. Através do atendimento, você pode falar diretamente com nossa equipe.`,
-          thumbnail: emojis.static.other_ticket,
-        }),
-        Separator.Default,
-        [
-          `● Forneça o motivo e o máximo de informações possível para agilizar seu atendimento.`,
-          `● Não chame membros da equipe no privado.`,
-          `● Iniciar um atendimento sem um motivo coerente poderá resultar em punições.`,
-        ].join("\n"),
-        Separator.Default,
-        "Clique no botão abaixo para iniciar o seu atendimento.",
+      const guildData = await db.guilds.get(guildId!);
+      const panel = guildData.panel || {};
+      const title = limitText(getPanelTitle(panel.title), 120);
+      const description = limitText(
+        getPanelDescription(panel.description),
+        TEXT_DISPLAY_LIMIT - title.length - 45,
+      );
+      const footer = limitText(getPanelFooter(panel.footer), 300);
+      const configuredCategories = guildData.channels?.categories || {};
+      const categoryOptions = Object.keys(configuredCategories)
+        .filter((category) => configuredCategories[category] && !HIDDEN_CATEGORIES.has(category))
+        .map((category) => {
+          const meta = categoryMeta[category];
+          return {
+            label: meta?.label || formatCategoryLabel(category),
+            description: meta?.description || "Iniciar atendimento nesta categoria.",
+            value: category,
+            emoji: meta?.emoji || "1502789959378145300",
+          };
+        })
+        .slice(0, 25);
+
+      if (categoryOptions.length === 0) {
+        await interaction.reply({
+          content: "Nenhuma categoria foi configurada ainda. Use `/configurar` antes de enviar o painel.",
+          flags: ["Ephemeral"],
+        });
+        return;
+      }
+
+      const bannerUrl =
+        guild?.bannerURL({ size: 1024 }) ||
+        guild?.iconURL({ size: 1024 });
+
+      const panelContent = `# ${title}\n${description}\n\n${footer}`;
+      const panelBlocks: any[] = [
+        bannerUrl
+          ? createSection({
+              content: panelContent,
+              thumbnail: bannerUrl,
+            })
+          : panelContent,
+      ];
+
+      panelBlocks.push(
         createRow(
-          new ButtonBuilder({
-            customId: "ticket/form/open",
-            label: "Abrir Ticket",
-            style: ButtonStyle.Primary,
-            emoji: "1502789959378145300",
+          new StringSelectMenuBuilder({
+            customId: "ticket/form/category",
+            placeholder: "Selecione uma opcao...",
+            options: categoryOptions,
           }),
         ),
       );
+
+      const container = createContainer(constants.colors.ticketBanner, ...panelBlocks);
 
       await (channel as any).send({
         components: [container],
@@ -117,41 +180,6 @@ createCommand({
         content: "Painel de tickets enviado com sucesso!",
         flags: ["Ephemeral"],
       });
-    }
-
-    if (subcommand === "configurar") {
-      const logsChannel = options.getChannel("logs", true);
-      const catSuporte = options.getChannel("cat_suporte", true);
-      const catDenuncia = options.getChannel("cat_denuncia", true);
-      const catFinanceiro = options.getChannel("cat_financeiro", true);
-      const catBugs = options.getChannel("cat_bugs", true);
-
-      await interaction.deferReply({ flags: ["Ephemeral"] });
-
-      try {
-        const guildData = await db.guilds.get(guildId!);
-        guildData.channels = {
-          ...guildData.channels,
-          tickets: logsChannel.id,
-          categories: {
-            suporte: catSuporte.id,
-            denuncia: catDenuncia.id,
-            financeiro: catFinanceiro.id,
-            bugs: catBugs.id,
-          },
-        };
-        await (guildData as any).save();
-
-        await interaction.editReply({
-          content:
-            "✅ Sistema de tickets configurado! Logs e Categorias salvos com sucesso.",
-        });
-      } catch (error) {
-        console.error("Erro na configuração:", error);
-        await interaction.editReply({
-          content: "Ocorreu um erro ao salvar a configuração.",
-        });
-      }
     }
   },
 });

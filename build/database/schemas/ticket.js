@@ -1,8 +1,6 @@
 import { Schema } from "mongoose";
 import { t } from "../utils.js";
-
-export const ticketSchema = new Schema(
-  {
+export const ticketSchema = new Schema({
     guildId: t.string,
     ownerId: t.string,
     channelId: t.string,
@@ -12,20 +10,18 @@ export const ticketSchema = new Schema(
     description: t.string,
     statusTitle: { type: String, default: "ALINHANDO DETALHES" },
     statusDescription: {
-      type: String,
-      default: "Estamos conversando sobre sua encomenda e alinhando todos os pontos do projeto.",
+        type: String,
+        default: "Estamos conversando sobre sua encomenda e alinhando todos os pontos do projeto.",
     },
     claimedBy: String,
     closed: { type: Boolean, default: false },
     closedBy: String,
     openedAt: { type: Date, default: Date.now },
     closedAt: Date,
-  },
-  {
+}, {
     statics: {
-      async getByChannel(channelId: string) {
-        return await this.findOne({ channelId });
-      },
+        async getByChannel(channelId) {
+            return await this.findOne({ channelId });
+        },
     },
-  },
-);
+});

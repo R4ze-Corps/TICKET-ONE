@@ -1,5 +1,4 @@
 # Folders
-/build
 /dist
 /discloud
 /deprecated
@@ -15,6 +14,7 @@
 
 # Extensions
 *.zip
+/Configuração.save
 *.sqlite
 *.sql
 *.exe

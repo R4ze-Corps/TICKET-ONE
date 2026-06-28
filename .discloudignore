@@ -10,7 +10,9 @@
 
 # Folders
 /.vscode
+/.git
 /src
+/web
 /deprecated
 /discloud
 /node_modules
@@ -23,6 +25,9 @@
 /.gitignore
 /tsconfig.json
 /README.md
+/Configuração.save
+/Iniciar Bot.cmd
+/start.bat
 
 # Extensions
 *.md
