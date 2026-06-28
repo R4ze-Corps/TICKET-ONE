@@ -23,11 +23,11 @@ const DEFAULT_INITIAL_ROLE_ID = "1519184755373903912";
 const DEFAULT_REGISTER_CATEGORIES: RegisterCategory[] = [
   {
     id: "player",
-    label: "Player",
+    label: "Kids",
     roleId: "1477306990295257208",
     description: "Registro como player.",
     type: "player",
-    emoji: "1502789979229913268",
+    emoji: "1520826742972088371",
   },
   {
     id: "responsavel",
@@ -35,7 +35,7 @@ const DEFAULT_REGISTER_CATEGORIES: RegisterCategory[] = [
     roleId: "1477283282616979679",
     description: "Registro como pai, mae ou responsavel.",
     type: "responsavel",
-    emoji: "1502789940612698192",
+    emoji: "1520828253940486206",
   },
 ];
 
@@ -76,6 +76,13 @@ function normalizeCategoryType(value?: string): RegisterCategory["type"] {
   return value?.toLowerCase().includes("respons") ? "responsavel" : "player";
 }
 
+function getRegisterCategoryEmoji(category: any) {
+  const key = `${category?.id || ""} ${category?.label || ""}`.toLowerCase();
+  if (key.includes("respons")) return "1520828253940486206";
+  if (key.includes("kid") || key.includes("player")) return "1520826742972088371";
+  return category?.emoji ? String(category.emoji) : undefined;
+}
+
 function getRegistrationConfig(guildData: any) {
   const saved = guildData.registration || {};
   const savedCategories = Array.isArray(saved.categories)
@@ -91,7 +98,7 @@ function getRegistrationConfig(guildData: any) {
         roleId: String(category.roleId),
         description: String(category.description || "Categoria de registro."),
         type: normalizeCategoryType(category.type),
-        emoji: category.emoji ? String(category.emoji) : undefined,
+        emoji: getRegisterCategoryEmoji(category),
       }),
     ) as RegisterCategory[],
   };
@@ -562,7 +569,7 @@ createResponder({
         components: [
           createReviewContainer(
             request,
-            `<:action_check:1502789797821939752> **Aprovado por:** ${interaction.user}`,
+            `<:check:1520842193257103532> **Aprovado por:** ${interaction.user}`,
           ),
         ],
       });

@@ -129,6 +129,10 @@ function getClientName(owner) {
     return owner?.displayName || owner?.user?.globalName || owner?.user?.username || "Cliente";
 }
 const categoryMeta = {
+    peds: { label: "Peds", emoji: "1520826742972088371" },
+    denuncias: { label: "Denuncias", emoji: "1520829698261778544" },
+    kids: { label: "Kids", emoji: "1520826742972088371" },
+    responsavel: { label: "Responsável", emoji: "1520828253940486206" },
     suporte: { label: "Suporte", emoji: "1502789958430232688" },
     bot: { label: "Bot", emoji: "1502789931808981012" },
     roupas: { label: "Roupas", emoji: "1502789953334280345" },
@@ -148,7 +152,7 @@ function getConfiguredTicketCategoryOptions(configured) {
         .map((key) => ({
         label: categoryMeta[key]?.label || formatCategoryLabel(key),
         value: key,
-        emoji: categoryMeta[key]?.emoji || "1502789959378145300",
+        emoji: categoryMeta[key]?.emoji || "1520849868820578385",
     }));
 }
 function getTicketStatus(ticket) {
@@ -173,6 +177,31 @@ function getAdminStatusText(ticket) {
 }
 function hasTicketClaimer(ticket) {
     return typeof ticket.claimedBy === "string" && ticket.claimedBy.length > 0;
+}
+async function hasTicketStaffPermission(interaction) {
+    const member = await interaction.guild?.members
+        .fetch(interaction.user.id)
+        .catch(() => null);
+    if (!member)
+        return false;
+    if (member.permissions.has(PermissionFlagsBits.Administrator))
+        return true;
+    if (member.permissions.has(PermissionFlagsBits.ManageChannels))
+        return true;
+    const guildData = await db.guilds.get(interaction.guildId);
+    const staffRoleId = guildData.panel?.staffRoleId;
+    return staffRoleId ? member.roles.cache.has(staffRoleId) : false;
+}
+async function replyTicketNeedsStaffRole(interaction) {
+    const response = {
+        content: "<:action_warning:1502789801949265990> Você não tem permissão para usar essa ação.",
+        flags: ["Ephemeral"],
+    };
+    if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(response).catch(() => { });
+        return;
+    }
+    await interaction.reply(response).catch(() => { });
 }
 async function replyTicketNeedsClaimer(interaction) {
     const response = {
@@ -202,7 +231,7 @@ function createMainPanel(ticket, owner, guild) {
     const clientName = getClientName(owner);
     const status = getTicketStatus(ticket);
     const assignedLine = isClaimed
-        ? `\n\n> <:user_check:1502789974276178121> **Assumido por:** <@${ticket.claimedBy}>`
+        ? `\n\n> <:check:1520842193257103532> **Assumido por:** <@${ticket.claimedBy}>`
         : "";
     const statusBlocks = status
         ? [
@@ -211,10 +240,10 @@ function createMainPanel(ticket, owner, guild) {
         ]
         : [];
     return createContainer(constants.colors.white, createSection({
-        content: `# <:other_ticket:1502789959378145300> Ticket ${clientName}\n${ownerDisplay} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.` +
+        content: `# <:Folderopen:1520849868820578385> Ticket ${clientName}\n${ownerDisplay} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.` +
             assignedLine,
         thumbnail: getGuildImage(guild),
-    }), ...statusBlocks, Separator.Default, `<:folder_open:1502789875928400103> **Categoria do atendimento:**\n\`\`\`\n${ticket.category.toUpperCase()}\n\`\`\``, `<:action_info:1502789798983766016> **Motivo do contato:**\n\`\`\`\n${ticket.description}\n\`\`\``, Separator.Default, createRow(...(isClaimed
+    }), ...statusBlocks, Separator.Default, `<:foldersearch:1520843134521577615> **Categoria do atendimento:**\n\`\`\`\n${ticket.category.toUpperCase()}\n\`\`\``, `<:bagdinfo:1520843355108544683> **Motivo do contato:**\n\`\`\`\n${ticket.description}\n\`\`\``, Separator.Default, createRow(...(isClaimed
         ? []
         : [
             new ButtonBuilder({
@@ -249,6 +278,18 @@ createResponder({
                 content: "Este canal não é um ticket válido ou não está no banco de dados.",
                 flags: ["Ephemeral"],
             });
+            return;
+        }
+        const staffOnlyActions = new Set([
+            "claim",
+            "admin",
+            "close",
+            "close_confirm",
+            "close_modal",
+            "delete",
+        ]);
+        if (staffOnlyActions.has(action) && !(await hasTicketStaffPermission(interaction))) {
+            await replyTicketNeedsStaffRole(interaction);
             return;
         }
         switch (action) {
@@ -291,7 +332,7 @@ createResponder({
             case "admin": {
                 const isTheClaimer = ticket.claimedBy === user.id;
                 const container = createContainer("#00FFD4", createSection({
-                    content: `## <:shield:1502789938532450304> Painel Administrativo ${ticket.ticketId}\nSeja muito bem-vindo(a) ao Painel Administrativo! Este é o seu ambiente de controle, onde você pode gerenciar o atendimento atual. Caso tenha alguma dúvida sobre o funcionamento, entre em contato com a equipe responsável.`,
+                    content: `## <:close:1520841892110012536> Painel Administrativo ${ticket.ticketId}\nSeja muito bem-vindo(a) ao Painel Administrativo! Este é o seu ambiente de controle, onde você pode gerenciar o atendimento atual. Caso tenha alguma dúvida sobre o funcionamento, entre em contato com a equipe responsável.`,
                     thumbnail: getGuildImage(guild),
                 }), Separator.Default, createSection({
                     content: `● **Gerenciar usuário**\nNesta opção você pode adicionar/remover usuários do atendimento.`,
@@ -422,7 +463,7 @@ createResponder({
                     }
                 }
                 await interaction.reply({
-                    content: `<:action_check:1502789974276178121> Você largou o atendimento deste ticket.`,
+                    content: `<:check:1520842193257103532> Você largou o atendimento deste ticket.`,
                     flags: ["Ephemeral"],
                 });
                 break;
@@ -452,7 +493,7 @@ createResponder({
                 const success = await owner.send({ embeds: [embed] }).catch(() => null);
                 if (success) {
                     await interaction.editReply({
-                        content: `<:action_check:1502789797821939752> O dono do ticket foi notificado com sucesso via DM!`,
+                        content: `<:check:1520842193257103532> O dono do ticket foi notificado com sucesso via DM!`,
                     });
                 }
                 else {
@@ -569,21 +610,21 @@ createResponder({
                         const openedAtTimestamp = Math.floor(getTicketOpenedAt(ticket).getTime() / 1000);
                         const closedAtTimestamp = Math.floor(Date.now() / 1000);
                         const logContainer = createContainer("#00FFD4", createSection({
-                            content: `## <:folder:1502789880214720533> Atendimento Deletado: ${ticket.ticketId}\nO atendimento \`${ticket.ticketId}\` foi deletado por ${user}. O histórico de mensagens foi salvo e pode ser acessado abaixo.\n\n**Codigo do transcript:** \`${transcript.id}\``,
+                            content: `## <:fileclock:1520839663068119061> Atendimento Deletado: ${ticket.ticketId}\nO atendimento \`${ticket.ticketId}\` foi deletado por ${user}. O histórico de mensagens foi salvo e pode ser acessado abaixo.\n\n**Codigo do transcript:** \`${transcript.id}\``,
                             thumbnail: getGuildImage(guild),
                         }), Separator.Default, `**Identificação**\n` +
                             [
-                                `<:user:1502789979229913268> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
+                                `<:Fileup:1520841650652450877> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
                                 `<:action_remove:1502789800967536741> **Deletado por:** ${user} (\`${user.id}\`)`,
-                                `<:user_check:1502789974276178121> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
+                                `<:check:1520842193257103532> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
                             ].join("\n"), Separator.Default, `**Cronologia**\n` +
                             [
                                 `<:clock:1502789859960422502> **Aberto em:** <t:${openedAtTimestamp}:f> (<t:${openedAtTimestamp}:R>)`,
                                 `<:clock:1502789859960422502> **Encerrado em:** <t:${closedAtTimestamp}:f> (<t:${closedAtTimestamp}:R>)`,
                             ].join("\n"), Separator.Default, `**Detalhes do Ticket**\n` +
                             [
-                                `<:folder_open:1502789875928400103> **Categoria:** \`${ticket.category}\``,
-                                `<:action_info:1502789798983766016> **Motivo:** \`${ticket.description || "Não informado."}\``,
+                                `<:foldersearch:1520843134521577615> **Categoria:** \`${ticket.category}\``,
+                                `<:bagdinfo:1520843355108544683> **Motivo:** \`${ticket.description || "Não informado."}\``,
                             ].join("\n"), createRow(new ButtonBuilder({
                             label: "Acessar Transcript",
                             style: ButtonStyle.Link,
@@ -681,7 +722,7 @@ createResponder({
             await ticket.save();
             // 3. Feedback
             await interaction.editReply({
-                content: `<:action_check:1502789974276178121> Ticket transferido para a categoria **${newCategory.toUpperCase()}** com sucesso!`,
+                content: `<:check:1520842193257103532> Ticket transferido para a categoria **${newCategory.toUpperCase()}** com sucesso!`,
             });
         }
         catch (error) {
@@ -726,7 +767,7 @@ createResponder({
         await updateMainTicketMessage(channel, ticket, guild);
         await interaction.editReply({
             components: [
-                createContainer(constants.colors.white, `<:action_check:1502789797821939752> Status do player atualizado para **${selectedStatus.label}**.`),
+                createContainer(constants.colors.white, `<:check:1520842193257103532> Status do player atualizado para **${selectedStatus.label}**.`),
             ],
         });
     },

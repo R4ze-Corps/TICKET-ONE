@@ -17,7 +17,7 @@ createCommand({
       constants.colors.white,
       createSection({
         content:
-          "## <:shield:1502789938532450304> Configuração Universal\nSelecione qual área deseja configurar.",
+          "## <:close:1520841892110012536> Configuração Universal\nSelecione qual área deseja configurar.",
         thumbnail: "https://cdn.discordapp.com/emojis/1502789938532450304.png",
       }),
       Separator.Default,

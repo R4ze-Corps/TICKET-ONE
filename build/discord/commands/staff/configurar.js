@@ -8,7 +8,7 @@ createCommand({
     defaultMemberPermissions: ["Administrator"],
     async run(interaction) {
         const container = createContainer(constants.colors.white, createSection({
-            content: "## <:shield:1502789938532450304> Configuração Universal\nSelecione qual área deseja configurar.",
+            content: "## <:close:1520841892110012536> Configuração Universal\nSelecione qual área deseja configurar.",
             thumbnail: "https://cdn.discordapp.com/emojis/1502789938532450304.png",
         }), Separator.Default, "**Painel Ticket** — Personalizar o painel de abertura de tickets.", Separator.Default, "**Comando Registrar** — Configurar cargo inicial e categorias do registro.", Separator.Default, createRow(new ButtonBuilder({
             customId: "config/painel",

@@ -23,7 +23,8 @@ const DEFAULT_PANEL_DESCRIPTION = [
     "Equipe Villão conta com sua colaboração para um atendimento eficiente.",
     "",
 ].join("\n");
-const DEFAULT_PANEL_TITLE = "📁 ATENDIMENTO VILLÃO";
+const PANEL_TITLE_EMOJI = "<:File2:1520832648728023041>";
+const DEFAULT_PANEL_TITLE = `${PANEL_TITLE_EMOJI} ATENDIMENTO VILLÃO`;
 const LEGACY_DEFAULT_PANEL_TITLES = new Set([
     "Central de Atendimento",
 ]);
@@ -37,11 +38,11 @@ const DEFAULT_INITIAL_ROLE_ID = "1519184755373903912";
 const DEFAULT_REGISTER_CATEGORIES = [
     {
         id: "player",
-        label: "Player",
+        label: "Kids",
         roleId: "1477306990295257208",
         description: "Registro como player.",
         type: "player",
-        emoji: "1502789979229913268",
+        emoji: "1520826742972088371",
     },
     {
         id: "responsavel",
@@ -49,14 +50,14 @@ const DEFAULT_REGISTER_CATEGORIES = [
         roleId: "1477283282616979679",
         description: "Registro como pai, mãe ou responsável.",
         type: "responsavel",
-        emoji: "1502789940612698192",
+        emoji: "1520828253940486206",
     },
 ];
 function getPanelTitle(title) {
     if (!title || LEGACY_DEFAULT_PANEL_TITLES.has(title)) {
         return DEFAULT_PANEL_TITLE;
     }
-    return title;
+    return title.replace(/^(?:📁|ðŸ“)\s*/, `${PANEL_TITLE_EMOJI} `);
 }
 function getPanelDescription(description) {
     if (!description || LEGACY_DEFAULT_PANEL_DESCRIPTIONS.has(description)) {
@@ -64,8 +65,38 @@ function getPanelDescription(description) {
     }
     return description;
 }
+function getPanelFooter(footer) {
+    if (!footer || footer.trim().toLowerCase() === "oi") {
+        return "Villao 2026 \u00A9 Todos os direitos reservados";
+    }
+    return footer;
+}
+function createPanelConfigContainer(panel) {
+    const staffRoleLine = panel.staffRoleId
+        ? `<@&${panel.staffRoleId}>`
+        : "Nenhum cargo configurado.";
+    return createContainer(constants.colors.white, "## Configuração do Painel Ticket", Separator.Default, `**Cargo da Staff:** ${staffRoleLine}`, Separator.Default, createRow(new ButtonBuilder({
+        customId: "config/painel/text",
+        label: "Editar Painel",
+        style: ButtonStyle.Primary,
+        emoji: "1520832648728023041",
+    }), new ButtonBuilder({
+        customId: "config/painel/staff_role",
+        label: "Cargo Staff",
+        style: ButtonStyle.Secondary,
+        emoji: "1502789938532450304",
+    })));
+}
 function normalizeCategoryType(value) {
     return value?.toLowerCase().includes("respons") ? "responsavel" : "player";
+}
+function getRegisterCategoryEmoji(category) {
+    const key = `${category?.id || ""} ${category?.label || ""}`.toLowerCase();
+    if (key.includes("respons"))
+        return "1520828253940486206";
+    if (key.includes("kid") || key.includes("player"))
+        return "1520826742972088371";
+    return category?.emoji ? String(category.emoji) : undefined;
 }
 function createCategoryId(label, categories) {
     const base = label
@@ -95,7 +126,7 @@ function getRegistrationConfig(guildData) {
             roleId: String(category.roleId),
             description: String(category.description || "Categoria de registro."),
             type: normalizeCategoryType(category.type),
-            emoji: category.emoji ? String(category.emoji) : undefined,
+            emoji: getRegisterCategoryEmoji(category),
         })),
     };
 }
@@ -122,6 +153,18 @@ function createRegistrationConfigContainer(config) {
         label: "Criar Categoria",
         style: ButtonStyle.Success,
         emoji: "1502789797821939752",
+    })), createRow(new ButtonBuilder({
+        customId: "config/registro/set_role/0",
+        label: "Cargo Set 1",
+        style: ButtonStyle.Secondary,
+        emoji: "1502789979229913268",
+        disabled: config.categories.length < 1,
+    }), new ButtonBuilder({
+        customId: "config/registro/set_role/1",
+        label: "Cargo Set 2",
+        style: ButtonStyle.Secondary,
+        emoji: "1502789979229913268",
+        disabled: config.categories.length < 2,
     })), createRow(new ButtonBuilder({
         customId: "config/registro/category/edit",
         label: "Editar Categoria",
@@ -241,7 +284,61 @@ createResponder({
         config.initialRoleId = interaction.values[0];
         await saveRegistrationConfig(guildData, config);
         await interaction.update({
-            content: `<:action_check:1502789797821939752> Cargo inicial atualizado para <@&${config.initialRoleId}>.`,
+            content: `<:check:1520842193257103532> Cargo inicial atualizado para <@&${config.initialRoleId}>.`,
+            components: [],
+        });
+    },
+});
+createResponder({
+    customId: "config/registro/set_role/:index",
+    types: [ResponderType.Button],
+    cache: "cached",
+    async run(interaction, { index }) {
+        const categoryIndex = Number(index);
+        const guildData = await db.guilds.get(interaction.guildId);
+        const config = getRegistrationConfig(guildData);
+        const category = config.categories[categoryIndex];
+        if (!category) {
+            await interaction.reply({
+                content: "Categoria de set nao encontrada.",
+                flags: ["Ephemeral"],
+            });
+            return;
+        }
+        await interaction.reply({
+            content: `Selecione o cargo do Set ${categoryIndex + 1} (${category.label}).`,
+            components: [
+                createRow(new RoleSelectMenuBuilder({
+                    customId: `config/registro/set_role/select/${categoryIndex}`,
+                    placeholder: `Escolha o cargo do Set ${categoryIndex + 1}...`,
+                    minValues: 1,
+                    maxValues: 1,
+                })),
+            ],
+            flags: ["Ephemeral"],
+        });
+    },
+});
+createResponder({
+    customId: "config/registro/set_role/select/:index",
+    types: [ResponderType.RoleSelect],
+    cache: "cached",
+    async run(interaction, { index }) {
+        const categoryIndex = Number(index);
+        const guildData = await db.guilds.get(interaction.guildId);
+        const config = getRegistrationConfig(guildData);
+        const category = config.categories[categoryIndex];
+        if (!category) {
+            await interaction.update({
+                content: "Categoria de set nao encontrada.",
+                components: [],
+            });
+            return;
+        }
+        category.roleId = interaction.values[0];
+        await saveRegistrationConfig(guildData, config);
+        await interaction.update({
+            content: `<:check:1520842193257103532> Cargo do Set ${categoryIndex + 1} (${category.label}) atualizado para <@&${category.roleId}>.`,
             components: [],
         });
     },
@@ -276,7 +373,7 @@ createResponder({
         });
         await saveRegistrationConfig(guildData, config);
         await interaction.editReply({
-            content: `<:action_check:1502789797821939752> Categoria **${fields.label}** criada com sucesso.`,
+            content: `<:check:1520842193257103532> Categoria **${fields.label}** criada com sucesso.`,
         });
     },
 });
@@ -348,7 +445,7 @@ createResponder({
         };
         await saveRegistrationConfig(guildData, config);
         await interaction.editReply({
-            content: `<:action_check:1502789797821939752> Categoria **${fields.label}** atualizada com sucesso.`,
+            content: `<:check:1520842193257103532> Categoria **${fields.label}** atualizada com sucesso.`,
         });
     },
 });
@@ -472,7 +569,7 @@ createResponder({
                 emoji: "1502789797821939752",
             });
             await interaction.editReply({
-                content: `<:action_check:1502789797821939752> Logs, Suporte, Bot, Roupas e Parceria configurados!`,
+                content: `<:check:1520842193257103532> Logs, Suporte, Bot, Roupas e Parceria configurados!`,
                 components: [createRow(doneButton)],
             });
         }
@@ -491,7 +588,7 @@ createResponder({
     cache: "cached",
     async run(interaction) {
         await interaction.update({
-            content: `<:action_check:1502789797821939752> Configuração de canais concluída!`,
+            content: `<:check:1520842193257103532> Configuração de canais concluída!`,
             components: [],
         });
     },
@@ -509,7 +606,7 @@ createResponder({
             await db.tickets.clear();
             await db.transcripts.clear();
             await interaction.editReply({
-                content: `<:action_check:1502789797821939752> Cache limpo com sucesso! Todos os dados em memória foram resetados.`,
+                content: `<:check:1520842193257103532> Cache limpo com sucesso! Todos os dados em memória foram resetados.`,
             });
         }
         catch (error) {
@@ -523,6 +620,18 @@ createResponder({
 // --- BOTÃO: Painel Ticket ---
 createResponder({
     customId: "config/painel",
+    types: [ResponderType.Button],
+    cache: "cached",
+    async run(interaction) {
+        const guildData = await db.guilds.get(interaction.guildId);
+        const panel = guildData.panel || {};
+        await interaction.update({
+            components: [createPanelConfigContainer(panel)],
+        });
+    },
+});
+createResponder({
+    customId: "config/painel/text",
     types: [ResponderType.Button],
     cache: "cached",
     async run(interaction) {
@@ -544,19 +653,10 @@ createResponder({
             .setLabel("Descrição")
             .setTextInputComponent(new TextInputBuilder()
             .setCustomId("description")
-            .setPlaceholder(DEFAULT_PANEL_DESCRIPTION)
+            .setPlaceholder("Texto principal do painel de tickets...")
             .setStyle(TextInputStyle.Paragraph)
             .setMaxLength(3500)
             .setValue(limitInputValue(getPanelDescription(panel.description), 3500))
-            .setRequired(true));
-        const labelRegras = new LabelBuilder()
-            .setLabel("Regras (uma por linha)")
-            .setTextInputComponent(new TextInputBuilder()
-            .setCustomId("rules")
-            .setPlaceholder("Forneça o motivo do contato...")
-            .setStyle(TextInputStyle.Paragraph)
-            .setMaxLength(3500)
-            .setValue(limitInputValue((panel.rules || []).join("\n"), 3500))
             .setRequired(true));
         const labelFooter = new LabelBuilder()
             .setLabel("Rodapé")
@@ -565,10 +665,46 @@ createResponder({
             .setPlaceholder("Villao 2026 \u00A9 Todos os direitos reservados")
             .setStyle(TextInputStyle.Short)
             .setMaxLength(300)
-            .setValue(limitInputValue(panel.footer || "Villao 2026 \u00A9 Todos os direitos reservados", 300))
+            .setValue(limitInputValue(getPanelFooter(panel.footer), 300))
             .setRequired(true));
-        modal.addComponents(labelTitulo, labelDescricao, labelRegras, labelFooter);
+        modal.addComponents(labelTitulo, labelDescricao, labelFooter);
         await interaction.showModal(modal).catch(() => { });
+    },
+});
+createResponder({
+    customId: "config/painel/staff_role",
+    types: [ResponderType.Button],
+    cache: "cached",
+    async run(interaction) {
+        await interaction.reply({
+            content: "Selecione o cargo que poderá usar Painel Admin, Assumir Ticket e Finalizar Ticket.",
+            components: [
+                createRow(new RoleSelectMenuBuilder({
+                    customId: "config/painel/staff_role/select",
+                    placeholder: "Escolha o cargo da staff...",
+                    minValues: 1,
+                    maxValues: 1,
+                })),
+            ],
+            flags: ["Ephemeral"],
+        });
+    },
+});
+createResponder({
+    customId: "config/painel/staff_role/select",
+    types: [ResponderType.RoleSelect],
+    cache: "cached",
+    async run(interaction) {
+        const guildData = await db.guilds.get(interaction.guildId);
+        guildData.panel = {
+            ...guildData.panel,
+            staffRoleId: interaction.values[0],
+        };
+        await guildData.save();
+        await interaction.update({
+            content: `<:check:1520842193257103532> Cargo da staff configurado para <@&${interaction.values[0]}>.`,
+            components: [],
+        });
     },
 });
 createResponder({
@@ -584,17 +720,16 @@ createResponder({
                 const v = data[key];
                 return (Array.isArray(v) ? v[0] : v);
             };
-            const rulesRaw = limitInputValue(getVal("rules"), 3500);
-            const rules = rulesRaw.split("\n").map((r) => r.trim()).filter(Boolean);
             guildData.panel = {
+                ...guildData.panel,
                 title: limitInputValue(getVal("title"), 120),
                 description: limitInputValue(getVal("description"), 3500),
-                rules,
+                rules: guildData.panel?.rules || [],
                 footer: limitInputValue(getVal("footer"), 300),
             };
             await guildData.save();
             await interaction.editReply({
-                content: `<:action_check:1502789797821939752> Painel de tickets personalizado com sucesso! Use \`/ticket painel\` para enviar o novo painel.`,
+                content: `<:check:1520842193257103532> Painel de tickets personalizado com sucesso! Use \`/ticket painel\` para enviar o novo painel.`,
             });
         }
         catch (error) {

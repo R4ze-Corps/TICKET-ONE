@@ -1,7 +1,7 @@
 import { createResponder } from "#base";
 import { ResponderType } from "@constatic/base";
 import { createContainer, createSection, modalFieldsToRecord, Separator, createRow, } from "@magicyan/discord";
-import { ButtonBuilder, ButtonStyle } from "discord.js";
+import { ButtonBuilder, ButtonStyle, PermissionFlagsBits } from "discord.js";
 import { db } from "#database";
 import { generateTranscript } from "./manage.js";
 function getGuildImage(guild) {
@@ -15,6 +15,20 @@ function getTicketOpenedAt(ticket) {
 }
 function hasTicketClaimer(ticket) {
     return typeof ticket.claimedBy === "string" && ticket.claimedBy.length > 0;
+}
+async function hasTicketStaffPermission(interaction) {
+    const member = await interaction.guild?.members
+        .fetch(interaction.user.id)
+        .catch(() => null);
+    if (!member)
+        return false;
+    if (member.permissions.has(PermissionFlagsBits.Administrator))
+        return true;
+    if (member.permissions.has(PermissionFlagsBits.ManageChannels))
+        return true;
+    const guildData = await db.guilds.get(interaction.guildId);
+    const staffRoleId = guildData.panel?.staffRoleId;
+    return staffRoleId ? member.roles.cache.has(staffRoleId) : false;
 }
 // Função compartilhada para renomear
 async function processRename(interaction) {
@@ -41,7 +55,7 @@ async function processRename(interaction) {
         });
         await interaction
             .editReply({
-            content: `<:action_check:1502789797821939752> Canal renomeado para: \`${formattedName}\``,
+            content: `<:check:1520842193257103532> Canal renomeado para: \`${formattedName}\``,
         })
             .catch(() => { });
     }
@@ -90,6 +104,15 @@ async function processCloseSubmission(interaction) {
         const ticket = await db.tickets.getByChannel(channel.id);
         if (!ticket)
             return;
+        if (!(await hasTicketStaffPermission(interaction))) {
+            await interaction
+                .editReply({
+                content: "<:action_warning:1502789801949265990> Você não tem permissão para finalizar este ticket.",
+                components: [],
+            })
+                .catch(() => { });
+            return;
+        }
         if (!hasTicketClaimer(ticket)) {
             await interaction
                 .editReply({
@@ -99,29 +122,35 @@ async function processCloseSubmission(interaction) {
                 .catch(() => { });
             return;
         }
-        await channel
-            .send({
-            content: `<:action_info:1502789798983766016> O atendimento foi finalizado por ${user}. Gerando transcript e deletando o canal em instantes...`,
-        })
-            .catch(() => { });
         const data = modalFieldsToRecord(fields);
         const transcriptChoiceRaw = data.transcript_choice;
         const wantTranscriptUser = (Array.isArray(transcriptChoiceRaw)
             ? transcriptChoiceRaw[0]
             : transcriptChoiceRaw) === "yes";
         const considerations = data.considerations || "Atendimento concluído.";
+        await channel
+            .send({
+            content: wantTranscriptUser
+                ? `<:bagdinfo:1520843355108544683> O atendimento foi finalizado por ${user}. Gerando transcript e deletando o canal em instantes...`
+                : `<:bagdinfo:1520843355108544683> O atendimento foi finalizado por ${user}. Deletando o canal em instantes...`,
+        })
+            .catch(() => { });
         // 2. Atualizar Banco
         ticket.closed = true;
         ticket.closedBy = user.id;
         ticket.closedAt = new Date();
         await ticket.save();
         console.log("[Ticket] 2. Banco Atualizado");
-        // 3. Transcript OBRIGATÓRIO (Independente da escolha do Staff)
-        console.log("[Ticket] 3. Gerando Transcript (Obrigatório para Staff)...");
-        const transcript = await generateTranscript(channel, ticket, user).catch((err) => {
-            console.error("[Ticket] Erro ao gerar transcript:", err);
-            return null;
-        });
+        // 3. Gerar transcript apenas quando a staff escolher salvar
+        console.log(wantTranscriptUser
+            ? "[Ticket] 3. Gerando Transcript..."
+            : "[Ticket] 3. Fechamento sem transcript.");
+        const transcript = wantTranscriptUser
+            ? await generateTranscript(channel, ticket, user).catch((err) => {
+                console.error("[Ticket] Erro ao gerar transcript:", err);
+                return null;
+            })
+            : null;
         const transcriptUrl = transcript?.url;
         // 4. LOG PARA STAFF (Sempre envia com o link se gerado)
         const guildData = await db.guilds.get(guild.id);
@@ -138,22 +167,26 @@ async function processCloseSubmission(interaction) {
                 const openedAtTimestamp = Math.floor(getTicketOpenedAt(ticket).getTime() / 1000);
                 const closedAtTimestamp = Math.floor(Date.now() / 1000);
                 const logContainer = createContainer("#00FFD4", createSection({
-                    content: `## <:folder:1502789880214720533> Atendimento ${ticket.ticketId}\nVenho registrar a log de encerramento do atendimento \`${ticket.ticketId}\`, encerrado por ${user}. Abaixo você pode ver todas as informações seguido do transcript.`,
+                    content: wantTranscriptUser
+                        ? `## <:fileclock:1520839663068119061> Atendimento ${ticket.ticketId}
+Venho registrar a log de encerramento do atendimento \`${ticket.ticketId}\`, encerrado por ${user}. Abaixo voce pode ver todas as informacoes seguido do transcript.`
+                        : `## <:fileclock:1520839663068119061> Atendimento ${ticket.ticketId}
+Venho registrar a log de encerramento do atendimento \`${ticket.ticketId}\`, encerrado por ${user}. O transcript nao foi salvo por escolha da staff.`,
                     thumbnail: getGuildImage(guild),
                 }), Separator.Default, `**Identificação**\n` +
                     [
-                        `<:user:1502789979229913268> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
+                        `<:Fileup:1520841650652450877> **Aberto por:** ${owner || "Desconhecido"} (\`${ticket.ownerId}\`)`,
                         `<:shield_check:1502789932727668788> **Encerrado por:** ${user} (\`${user.id}\`)`,
-                        `<:user_check:1502789974276178121> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
+                        `<:check:1520842193257103532> **Assumido por:** ${claimer || "Ninguém"} (\`${ticket.claimedBy || "0"}\`)`,
                     ].join("\n"), Separator.Default, `**Cronologia**\n` +
                     [
                         `<:clock:1502789859960422502> **Aberto em:** <t:${openedAtTimestamp}:f> (<t:${openedAtTimestamp}:R>)`,
                         `<:clock:1502789859960422502> **Encerrado em:** <t:${closedAtTimestamp}:f> (<t:${closedAtTimestamp}:R>)`,
                     ].join("\n"), Separator.Default, `**Detalhes do Ticket**\n` +
                     [
-                        `<:folder_open:1502789875928400103> **Categoria:** \`${ticket.category}\``,
-                        `<:action_info:1502789798983766016> **Motivo:** \`${ticket.description || "Não informado."}\``,
-                    ].join("\n"), Separator.Default, `**<:action_check:1502789797821939752> Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, transcript ? `**Codigo do transcript:** \`${transcript.id}\`` : [], transcriptUrl
+                        `<:foldersearch:1520843134521577615> **Categoria:** \`${ticket.category}\``,
+                        `<:bagdinfo:1520843355108544683> **Motivo:** \`${ticket.description || "Não informado."}\``,
+                    ].join("\n"), Separator.Default, `**<:check:1520842193257103532> Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, transcript ? `**Codigo do transcript:** \`${transcript.id}\`` : [], transcriptUrl
                     ? createRow(new ButtonBuilder({
                         label: "Acessar Transcript",
                         style: ButtonStyle.Link,
@@ -177,7 +210,7 @@ async function processCloseSubmission(interaction) {
             const dmContainer = createContainer(constants.colors.danger, createSection({
                 content: `### Atendimento Encerrado\nOlá ${ownerMember}, seu atendimento na categoria \`${ticket.category.toUpperCase()}\` foi encerrado por ${user}. Abaixo você pode ver as considerações finais do seu atendimento.`,
                 thumbnail: getGuildImage(guild),
-            }), Separator.Default, `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`, `<:calendar_check:1502789850649071740> **Encerrado em:** <t:${closeTime}:f>`, Separator.Default, `<:action_check:1502789797821939752> **Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, wantTranscriptUser && transcript
+            }), Separator.Default, `<:calendar:1502789854486986752> **Aberto em:** <t:${openTime}:f>`, `<:calendar:1502789854486986752> **Encerrado em:** <t:${closeTime}:f>`, Separator.Default, `<:check:1520842193257103532> **Considerações Finais:**\n\`\`\`\n${considerations}\n\`\`\``, wantTranscriptUser && transcript
                 ? `**Codigo do transcript:** \`${transcript.id}\``
                 : [], wantTranscriptUser && transcriptUrl
                 ? createRow(new ButtonBuilder({

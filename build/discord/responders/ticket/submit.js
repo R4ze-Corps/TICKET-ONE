@@ -34,9 +34,9 @@ function createTicketButtons(closeStyle = ButtonStyle.Secondary) {
 function createTicketContainer(guild, user, member, category, description) {
     const clientName = getClientName(user, member);
     return createContainer(constants.colors.white, createSection({
-        content: `# <:other_ticket:1502789959378145300> Ticket ${clientName}\n${user} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.`,
+        content: `# <:Folderopen:1520849868820578385> Ticket ${clientName}\n${user} Seja bem-vindo(a) ao seu ticket! Através deste canal, a equipe irá realizar seu atendimento e esclarecer suas dúvidas.`,
         thumbnail: getGuildImage(guild),
-    }), Separator.Default, `<:folder_open:1502789875928400103> **Categoria do atendimento:**\n\`\`\`\n${category.toUpperCase()}\n\`\`\``, `<:action_info:1502789798983766016> **Motivo do contato:**\n\`\`\`\n${description}\n\`\`\``, Separator.Default, createTicketButtons(category === "bot" ? ButtonStyle.Danger : ButtonStyle.Secondary));
+    }), Separator.Default, `<:foldersearch:1520843134521577615> **Categoria do atendimento:**\n\`\`\`\n${category.toUpperCase()}\n\`\`\``, `<:bagdinfo:1520843355108544683> **Motivo do contato:**\n\`\`\`\n${description}\n\`\`\``, Separator.Default, createTicketButtons(category === "bot" ? ButtonStyle.Danger : ButtonStyle.Secondary));
 }
 async function processTicketSubmission(interaction, selectedCategory) {
     console.log(">>> [Ticket] PROCESSANDO CRIAÇÃO DO TICKET...");
@@ -62,10 +62,10 @@ async function processTicketSubmission(interaction, selectedCategory) {
         }
         console.log(`[Ticket] Roteando assunto "${category}" para categoria ID: ${parentId || "Padrão"}`);
         // Emojis customizados para o tópico
-        const eTicket = "<:other_ticket:1502789959378145300>";
-        const eUser = "<:user:1502789979229913268>";
+        const eTicket = "<:Folderopen:1520849868820578385>";
+        const eUser = "<:Fileup:1520841650652450877>";
         const eCalendar = "<:calendar:1502789854486986752>";
-        const eFolder = "<:folder:1502789880214720533>";
+        const eFolder = "<:fileclock:1520839663068119061>";
         // 2. Criar o canal na categoria correta
         const channel = await guild.channels.create({
             name: `🎫・${ticketId}`,
@@ -120,12 +120,17 @@ async function processTicketSubmission(interaction, selectedCategory) {
     }
 }
 const categoryMeta = {
+    peds: { label: "Peds", emoji: "1520826742972088371" },
+    denuncias: { label: "Denuncias", emoji: "1520829698261778544" },
+    kids: { label: "Kids", emoji: "1520826742972088371" },
+    responsavel: { label: "Responsável", emoji: "1520828253940486206" },
     suporte: { label: "Suporte", emoji: "1502789958430232688" },
     bot: { label: "Bot", emoji: "1502789931808981012" },
     roupas: { label: "Roupas", emoji: "1502789953334280345" },
     parceria: { label: "Parceria", emoji: "1502789875928400103" },
 };
 const HIDDEN_CATEGORIES = new Set(["compras", "exclusivo", "pronta_entrega"]);
+const RESET_TICKET_CATEGORY_VALUE = "__reset_ticket_category__";
 function formatCategoryLabel(category) {
     return category
         .split("_")
@@ -152,6 +157,12 @@ createResponder({
     cache: "cached",
     async run(interaction) {
         const category = interaction.values[0];
+        if (category === RESET_TICKET_CATEGORY_VALUE) {
+            await interaction.update({
+                components: interaction.message.components,
+            });
+            return;
+        }
         const guildData = await db.guilds.get(interaction.guildId);
         const configured = guildData.channels?.categories || {};
         if (!configured[category] || HIDDEN_CATEGORIES.has(category)) {
@@ -178,7 +189,7 @@ createResponder({
             .map((key) => ({
             label: categoryMeta[key]?.label || formatCategoryLabel(key),
             value: key,
-            emoji: categoryMeta[key]?.emoji || "1502789959378145300",
+            emoji: categoryMeta[key]?.emoji || "1520849868820578385",
         }));
         if (options.length === 0) {
             await interaction.reply({

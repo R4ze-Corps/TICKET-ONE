@@ -6,6 +6,7 @@ export const guildSchema = new Schema(
     id: t.string,
     panel: {
       title: { type: String, default: "📁 ATENDIMENTO VILLÃO" },
+      staffRoleId: String,
       description: { type: String, default: [
         "Seja bem-vindo ao sistema de atendimento Villão. Utilize o menu abaixo para registrar sua solicitação e aguarde o retorno de nossa equipe.",
         "",

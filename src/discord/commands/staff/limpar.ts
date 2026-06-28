@@ -40,8 +40,8 @@ createCommand({
       await interaction.editReply({
         content:
           skippedMessages > 0
-            ? `<:action_check:1502789797821939752> ${deletedMessages.size} mensagem(ns) apagada(s). ${skippedMessages} nao puderam ser apagada(s), geralmente por terem mais de 14 dias.`
-            : `<:action_check:1502789797821939752> ${deletedMessages.size} mensagem(ns) apagada(s) com sucesso!`,
+            ? `<:check:1520842193257103532> ${deletedMessages.size} mensagem(ns) apagada(s). ${skippedMessages} nao puderam ser apagada(s), geralmente por terem mais de 14 dias.`
+            : `<:check:1520842193257103532> ${deletedMessages.size} mensagem(ns) apagada(s) com sucesso!`,
       });
     } catch (error) {
       console.error("Erro ao limpar mensagens:", error);

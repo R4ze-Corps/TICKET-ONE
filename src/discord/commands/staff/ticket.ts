@@ -13,8 +13,10 @@ import { db } from "#database";
 
 const TEXT_DISPLAY_LIMIT = 4000;
 const HIDDEN_CATEGORIES = new Set(["compras", "exclusivo", "pronta_entrega"]);
+const RESET_TICKET_CATEGORY_VALUE = "__reset_ticket_category__";
 const DEFAULT_PANEL_FOOTER = "Villao 2026 \u00A9 Todos os direitos reservados";
-const DEFAULT_PANEL_TITLE = "📁 ATENDIMENTO VILLÃO";
+const PANEL_TITLE_EMOJI = "<:File2:1520832648728023041>";
+const DEFAULT_PANEL_TITLE = `${PANEL_TITLE_EMOJI} ATENDIMENTO VILLÃO`;
 const DEFAULT_PANEL_DESCRIPTION =
   [
     "Seja bem-vindo ao sistema de atendimento Villão. Utilize o menu abaixo para registrar sua solicitação e aguarde o retorno de nossa equipe.",
@@ -45,7 +47,7 @@ function getPanelTitle(title?: string) {
   if (!title || LEGACY_DEFAULT_PANEL_TITLES.has(title)) {
     return DEFAULT_PANEL_TITLE;
   }
-  return title;
+  return title.replace(/^(?:📁|ðŸ“)\s*/, `${PANEL_TITLE_EMOJI} `);
 }
 
 function getPanelDescription(description?: string) {
@@ -56,10 +58,33 @@ function getPanelDescription(description?: string) {
 }
 
 function getPanelFooter(footer?: string) {
-  return footer || DEFAULT_PANEL_FOOTER;
+  if (!footer || footer.trim().toLowerCase() === "oi") {
+    return DEFAULT_PANEL_FOOTER;
+  }
+  return footer;
 }
 
 const categoryMeta: Record<string, { label: string; description: string; emoji: string }> = {
+  peds: {
+    label: "Peds",
+    description: "Iniciar atendimento nesta categoria.",
+    emoji: "1520826742972088371",
+  },
+  denuncias: {
+    label: "Denuncias",
+    description: "Iniciar atendimento nesta categoria.",
+    emoji: "1520829698261778544",
+  },
+  kids: {
+    label: "Kids",
+    description: "Atendimento relacionado a kids.",
+    emoji: "1520826742972088371",
+  },
+  responsavel: {
+    label: "Responsável",
+    description: "Atendimento para responsáveis.",
+    emoji: "1520828253940486206",
+  },
   suporte: {
     label: "Suporte",
     description: "Duvidas, ajuda e atendimento geral.",
@@ -132,10 +157,10 @@ createCommand({
             label: meta?.label || formatCategoryLabel(category),
             description: meta?.description || "Iniciar atendimento nesta categoria.",
             value: category,
-            emoji: meta?.emoji || "1502789959378145300",
+            emoji: meta?.emoji || "1520849868820578385",
           };
         })
-        .slice(0, 25);
+        .slice(0, 24);
 
       if (categoryOptions.length === 0) {
         await interaction.reply({
@@ -144,6 +169,13 @@ createCommand({
         });
         return;
       }
+
+      categoryOptions.push({
+        label: "Resetar selecao",
+        description: "Limpar a opcao escolhida no menu.",
+        value: RESET_TICKET_CATEGORY_VALUE,
+        emoji: "1520841892110012536",
+      });
 
       const bannerUrl =
         guild?.bannerURL({ size: 1024 }) ||
