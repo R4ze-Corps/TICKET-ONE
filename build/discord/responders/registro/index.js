@@ -3,7 +3,7 @@ import { db } from "#database";
 import { ResponderType } from "@constatic/base";
 import { createContainer, createRow, modalFieldsToRecord, Separator, } from "@magicyan/discord";
 import { ButtonBuilder, ButtonStyle, LabelBuilder, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder, } from "discord.js";
-const ANALYSIS_CHANNEL_ID = "1321697489530916877";
+const ANALYSIS_CHANNEL_ID = "1520219493706629231";
 const DEFAULT_INITIAL_ROLE_ID = "1519184755373903912";
 const DEFAULT_REGISTER_CATEGORIES = [
     {

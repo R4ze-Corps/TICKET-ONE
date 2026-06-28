@@ -18,7 +18,7 @@ import {
   UserSelectMenuBuilder,
 } from "discord.js";
 
-const ANALYSIS_CHANNEL_ID = "1321697489530916877";
+const ANALYSIS_CHANNEL_ID = "1520219493706629231";
 const DEFAULT_INITIAL_ROLE_ID = "1519184755373903912";
 const DEFAULT_REGISTER_CATEGORIES: RegisterCategory[] = [
   {
